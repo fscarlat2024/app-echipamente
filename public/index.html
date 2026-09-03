@@ -324,6 +324,14 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+  .role-badge {
+    display: inline-block; margin-bottom: 14px;
+    font-size: 12.5px; font-weight: 600; padding: 7px 13px; border-radius: 8px;
+    background: var(--accent-soft); color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+  .role-badge.setup { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-bd); }
+
   .comp-row {
     display: flex; align-items: center; gap: 12px;
     padding: 11px 13px; border: 1px solid var(--border); border-radius: 10px;
@@ -386,6 +394,7 @@
 </header>
 
 <main>
+  <div id="roleBadge" class="role-badge" hidden></div>
   <div class="kpis" id="kpis"></div>
 
   <div class="toolbar">
@@ -538,10 +547,14 @@
           <label for="c_cui">CUI / detalii</label>
           <input id="c_cui" placeholder="ex. RO12345678">
         </div>
-        <div class="field">
-          <label>&nbsp;</label>
+        <div class="field full">
+          <label for="c_emails">Email-uri client (vizualizare read-only)</label>
+          <input id="c_emails" placeholder="ex. contact@firma.ro, director@firma.ro">
+          <span class="hint">Cine se loghează cu unul din aceste email-uri vede DOAR echipamentele acestei firme, fără editare. Separă prin virgulă.</span>
+        </div>
+        <div class="field full">
           <div style="display:flex; gap:8px;">
-            <button type="submit" class="btn btn-primary" id="compSaveBtn" style="flex:1;">Adaugă firmă</button>
+            <button type="submit" class="btn btn-primary" id="compSaveBtn">Adaugă firmă</button>
             <button type="button" class="btn" id="compCancelEdit" hidden>Renunță</button>
           </div>
         </div>
@@ -633,47 +646,33 @@
   var editingCompId = null;
   var belParsed = null;
   var sort = { key: "nume", dir: 1 };
+  var state = { role: "admin", canWrite: true, setup: false, email: "" };
 
-  // ---------- storage ----------
-  function load() {
-    try {
-      var raw = localStorage.getItem(KEY);
-      if (raw) { data = JSON.parse(raw) || []; return; }
-    } catch (e) {}
-    data = seed();
-    save();
+  // ---------- API (backend Cloudflare D1) ----------
+  function api(method, path, body) {
+    return fetch(path, {
+      method: method,
+      headers: body ? { "content-type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+      credentials: "same-origin"
+    }).then(function (r) {
+      return r.text().then(function (t) {
+        var j = {}; try { j = t ? JSON.parse(t) : {}; } catch (e) {}
+        if (!r.ok) { var err = new Error(j.error || ("HTTP " + r.status)); err.status = r.status; err.body = j; throw err; }
+        return j;
+      });
+    });
   }
-  function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+  function boot() {
+    return api("GET", "/api/bootstrap").then(function (j) {
+      state.role = j.role; state.canWrite = !!j.canWrite; state.setup = !!j.setup; state.email = j.email || "";
+      data = j.equipment || [];
+      companies = j.companies || [];
+    });
   }
-  function loadCompanies() {
-    try {
-      var raw = localStorage.getItem(COMP_KEY);
-      if (raw) { companies = JSON.parse(raw) || []; return; }
-    } catch (e) {}
-    companies = [];
-  }
-  function saveCompanies() {
-    try { localStorage.setItem(COMP_KEY, JSON.stringify(companies)); } catch (e) {}
-  }
+
   function uid() { return "eq_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
   function cid() { return "co_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-
-  // Migrate legacy free-text `client` into company records + companyId.
-  function migrate() {
-    var changed = false, cChanged = false;
-    data.forEach(function (it) {
-      if (typeof it.companyId !== "undefined") return;
-      var name = (it.client || "").trim();
-      delete it.client;
-      if (!name) { it.companyId = ""; changed = true; return; }
-      var c = findCompanyByName(name);
-      if (!c) { c = { id: cid(), nume: name, contact: "", cui: "", note: "" }; companies.push(c); cChanged = true; }
-      it.companyId = c.id; changed = true;
-    });
-    if (changed) save();
-    if (cChanged) saveCompanies();
-  }
   function findCompanyByName(name) {
     var n = name.toLowerCase();
     return companies.find(function (c) { return c.nume.toLowerCase() === n; }) || null;
@@ -685,22 +684,6 @@
   }
   function equipCountFor(id) {
     return data.filter(function (it) { return it.companyId === id; }).length;
-  }
-
-  function seed() {
-    function d(y,m,day){ return y+"-"+String(m).padStart(2,"0")+"-"+String(day).padStart(2,"0"); }
-    return [
-      { id:uid(), nume:"FortiGate 100F", tip:"Firewall", marca:"Fortinet FG-100F", serial:"FG100FTK25012345", user:"Rack #2 Network", client:"aj brand", achizitie:d(2024,3,12), garantie:d(2027,3,12), status:"Activ", note:"HA principal, SD-WAN dual ISP" },
-      { id:uid(), nume:"FortiSwitch 124F", tip:"Switch", marca:"Fortinet FS-124F-POE", serial:"S124FTK25009911", user:"Rack #2", client:"aj brand", achizitie:d(2024,3,12), garantie:d(2026,10,1), status:"Activ", note:"Stack LAG catre FortiGate" },
-      { id:uid(), nume:"FortiAP 231F", tip:"Access Point", marca:"Fortinet FAP-231F", serial:"FP231FTF2209AJ9N", user:"Birou parter", client:"aj brand", achizitie:d(2023,6,5), garantie:d(2026,6,5), status:"Activ", note:"Wi-Fi 6, canal 36 / 80MHz" },
-      { id:uid(), nume:"FLORIN-NCS01", tip:"Laptop", marca:"Lenovo ThinkPad T14 Gen 6", serial:"PF668NF0", user:"Florin S.", client:"NCS intern", achizitie:d(2025,1,20), garantie:d(2028,1,20), status:"Activ", note:"BitLocker XTS-AES256, Entra registered" },
-      { id:uid(), nume:"NCS-DIANA", tip:"Desktop", marca:"Dell OptiPlex 7010", serial:"DL7010X92", user:"Diana", client:"NCS intern", achizitie:d(2022,9,1), garantie:d(2025,9,1), status:"Activ", note:"De verificat BitLocker" },
-      { id:uid(), nume:"NAS Synology DS1621+", tip:"NAS", marca:"Synology DS1621+", serial:"2140SQR004521", user:"Server room", client:"NCS intern", achizitie:d(2024,2,10), garantie:d(2027,2,10), status:"Activ", note:"Backup imutabil WORM, 80TB SHR" },
-      { id:uid(), nume:"UPS APC SMT1500", tip:"UPS", marca:"APC Smart-UPS 1500", serial:"AS1526110044", user:"Rack #1", client:"NCS intern", achizitie:d(2021,5,15), garantie:d(2024,5,15), status:"Activ", note:"Baterie de inlocuit" },
-      { id:uid(), nume:"HP LaserJet M428", tip:"Imprimantă", marca:"HP LaserJet Pro M428fdw", serial:"CNBRK12345", user:"Contabilitate", client:"scpsincron", achizitie:d(2023,11,3), garantie:d(2025,11,3), status:"Activ", note:"PCL v6, IP direct" },
-      { id:uid(), nume:"Laptop rezervă 01", tip:"Laptop", marca:"HP EliteBook 840 G8", serial:"5CG1234ABC", user:"—", client:"NCS intern", achizitie:d(2022,4,1), garantie:d(2025,4,1), status:"Rezervă", note:"Reimaginat, gata de alocare" },
-      { id:uid(), nume:"NCS-VECHI-07", tip:"Desktop", marca:"Dell Vostro 3670", serial:"DLV3670OLD", user:"—", client:"NCS intern", achizitie:d(2018,7,1), garantie:d(2021,7,1), status:"Casat", note:"Dezafectat, disc sters" }
-    ];
   }
 
   // ---------- helpers ----------
@@ -880,10 +863,10 @@
       '<td><span class="war"><span class="chip ' + w.cls + '">' + esc(w.txt) + '</span>' +
         (w.date ? '<span class="date mono">' + esc(w.date) + '</span>' : '') + '</span></td>' +
       '<td><span class="pill ' + stc + '"><span class="dot"></span>' + esc(it.status) + '</span></td>' +
-      '<td><div class="row-actions">' +
+      '<td>' + (state.canWrite ? ('<div class="row-actions">' +
         '<button class="icon-btn" data-edit="' + it.id + '" title="Editează" aria-label="Editează"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></button>' +
         '<button class="icon-btn del" data-del="' + it.id + '" title="Șterge" aria-label="Șterge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg></button>' +
-      '</div></td>' +
+      '</div>') : '') + '</td>' +
     '</tr>';
   }
 
@@ -974,23 +957,32 @@
       stocare: f.f_stocare.value.trim(), os: f.f_os.value.trim(),
       cheieWindows: f.f_key.value.trim(), note: f.f_note.value.trim()
     };
-    if (editingId) {
-      var it = data.find(function (x) { return x.id === editingId; });
-      if (it) Object.keys(obj).forEach(function (k) { it[k] = obj[k]; });
-      toast("Echipament actualizat");
-    } else {
-      obj.id = uid(); data.unshift(obj);
-      toast("Echipament adăugat");
-    }
-    save(); render(); closeModal();
+    if (editingId) obj.id = editingId;
+    var saveBtn = document.getElementById("saveBtn");
+    saveBtn.disabled = true;
+    api("POST", "/api/equipment", obj).then(function (res) {
+      if (editingId) {
+        var it = data.find(function (x) { return x.id === editingId; });
+        if (it) Object.keys(obj).forEach(function (k) { it[k] = obj[k]; });
+        toast("Echipament actualizat");
+      } else {
+        obj.id = res.id; data.unshift(obj);
+        toast("Echipament adăugat");
+      }
+      render(); closeModal();
+    }).catch(function (e) {
+      els.formErr.textContent = "Eroare la salvare: " + (e.message || e);
+    }).then(function () { saveBtn.disabled = false; });
   });
 
   function removeItem(id) {
     var it = data.find(function (x) { return x.id === id; });
     if (!it) return;
     if (!confirm('Ștergi „' + it.nume + '" din inventar?')) return;
-    data = data.filter(function (x) { return x.id !== id; });
-    save(); render(); toast("Echipament șters");
+    api("DELETE", "/api/equipment/" + encodeURIComponent(id)).then(function () {
+      data = data.filter(function (x) { return x.id !== id; });
+      render(); toast("Echipament șters");
+    }).catch(function (e) { alert("Eroare la ștergere: " + (e.message || e)); });
   }
 
   // ---------- export / import ----------
@@ -1075,17 +1067,13 @@
           return it;
         });
 
-        var replace = true;
-        if (data.length || companies.length) {
-          replace = confirm("Înlocuiești inventarul curent (" + data.length + " echip., " + companies.length + " firme) cu cel importat (" + clean.length + " echip., " + cleanFirme.length + " firme)?\n\nOK = înlocuire  •  Anulează = adăugare la cel existent");
-        }
-        if (replace) { data = clean; companies = cleanFirme; }
-        else {
-          companies = companies.concat(cleanFirme);
-          data = data.concat(clean);
-        }
-        save(); saveCompanies(); render(); refreshCompanyList();
-        toast("Import reușit: " + clean.length + " echipamente, " + cleanFirme.length + " firme");
+        if (!confirm("Import: se ÎNLOCUIEȘTE tot inventarul curent cu cel din fișier (" + clean.length + " echip., " + cleanFirme.length + " firme). Continui?")) return;
+        api("POST", "/api/import", { echipamente: clean, firme: cleanFirme }).then(function () {
+          return boot();
+        }).then(function () {
+          render(); refreshCompanyList(); refreshFilterOptions();
+          toast("Import reușit: " + clean.length + " echipamente, " + cleanFirme.length + " firme");
+        }).catch(function (er) { alert("Eroare import: " + (er.message || er)); });
       } catch (e) {
         alert("Fișier JSON invalid. Folosește un backup exportat din această aplicație.");
       }
@@ -1145,8 +1133,10 @@
   document.getElementById("clearBtn").addEventListener("click", function () {
     menu.classList.remove("open");
     if (!data.length) { toast("Inventarul e deja gol"); return; }
-    if (confirm("Ștergi definitiv toate cele " + data.length + " echipamente?\nFă întâi un export JSON dacă vrei backup.")) {
-      data = []; save(); render(); toast("Inventar golit");
+    if (confirm("Ștergi definitiv toate cele " + data.length + " echipamente? (firmele rămân)\nFă întâi un export JSON dacă vrei backup.")) {
+      api("POST", "/api/import", { echipamente: [], firme: companies }).then(function () { return boot(); }).then(function () {
+        render(); refreshCompanyList(); refreshFilterOptions(); toast("Inventar golit");
+      }).catch(function (e) { alert("Eroare: " + (e.message || e)); });
     }
   });
 
@@ -1201,6 +1191,7 @@
     document.getElementById("c_nume").value = c.nume;
     document.getElementById("c_contact").value = c.contact || "";
     document.getElementById("c_cui").value = c.cui || "";
+    document.getElementById("c_emails").value = c.clientEmails || "";
     document.getElementById("compSaveBtn").textContent = "Salvează";
     document.getElementById("compCancelEdit").hidden = false;
     document.getElementById("c_nume").focus();
@@ -1213,30 +1204,40 @@
       ? 'Ștergi firma „' + c.nume + '"?\nCele ' + n + ' echipamente alocate devin „nealocate".'
       : 'Ștergi firma „' + c.nume + '"?';
     if (!confirm(msg)) return;
-    data.forEach(function (it) { if (it.companyId === id) it.companyId = ""; });
-    companies = companies.filter(function (x) { return x.id !== id; });
-    save(); saveCompanies();
-    resetCompForm(); refreshCompanyList(); render();
-    toast("Firmă ștearsă");
+    api("DELETE", "/api/company/" + encodeURIComponent(id)).then(function () {
+      data.forEach(function (it) { if (it.companyId === id) it.companyId = ""; });
+      companies = companies.filter(function (x) { return x.id !== id; });
+      resetCompForm(); refreshCompanyList(); refreshFilterOptions(); render();
+      toast("Firmă ștearsă");
+    }).catch(function (e) { alert("Eroare la ștergere: " + (e.message || e)); });
   }
   compForm.addEventListener("submit", function (e) {
     e.preventDefault();
     var nume = document.getElementById("c_nume").value.trim();
     if (!nume) return;
-    var contact = document.getElementById("c_contact").value.trim();
-    var cui = document.getElementById("c_cui").value.trim();
-    if (editingCompId) {
-      var c = companies.find(function (x) { return x.id === editingCompId; });
-      if (c) { c.nume = nume; c.contact = contact; c.cui = cui; }
-      toast("Firmă actualizată");
-    } else {
+    var obj = {
+      nume: nume,
+      contact: document.getElementById("c_contact").value.trim(),
+      cui: document.getElementById("c_cui").value.trim(),
+      clientEmails: document.getElementById("c_emails").value.trim(),
+      note: ""
+    };
+    if (editingCompId) obj.id = editingCompId;
+    else {
       var dup = findCompanyByName(nume);
       if (dup) { toast("Firma există deja"); return; }
-      companies.push({ id: cid(), nume: nume, contact: contact, cui: cui, note: "" });
-      toast("Firmă adăugată");
     }
-    saveCompanies();
-    resetCompForm(); refreshCompanyList(); render();
+    api("POST", "/api/company", obj).then(function (res) {
+      if (editingCompId) {
+        var c = companies.find(function (x) { return x.id === editingCompId; });
+        if (c) { c.nume = obj.nume; c.contact = obj.contact; c.cui = obj.cui; c.clientEmails = obj.clientEmails; }
+        toast("Firmă actualizată");
+      } else {
+        companies.push({ id: res.id, nume: obj.nume, contact: obj.contact, cui: obj.cui, clientEmails: obj.clientEmails, note: "" });
+        toast("Firmă adăugată");
+      }
+      resetCompForm(); refreshCompanyList(); refreshFilterOptions(); render();
+    }).catch(function (er) { alert("Eroare la salvare: " + (er.message || er)); });
   });
 
   // quick-add company from the equipment form
@@ -1246,11 +1247,13 @@
     name = name.trim();
     if (!name) return;
     var existing = findCompanyByName(name);
-    var c = existing || { id: cid(), nume: name, contact: "", cui: "", note: "" };
-    if (!existing) { companies.push(c); saveCompanies(); }
-    fillCompanySelect(els.form.f_company, c.id);
-    refreshFilterOptions();
-    toast(existing ? "Firma există — selectată" : "Firmă adăugată");
+    if (existing) { fillCompanySelect(els.form.f_company, existing.id); toast("Firma există — selectată"); return; }
+    api("POST", "/api/company", { nume: name }).then(function (res) {
+      companies.push({ id: res.id, nume: name, contact: "", cui: "", clientEmails: "", note: "" });
+      fillCompanySelect(els.form.f_company, res.id);
+      refreshFilterOptions();
+      toast("Firmă adăugată");
+    }).catch(function (e) { alert("Eroare: " + (e.message || e)); });
   }
 
   // ---------- Belarc import ----------
@@ -1393,12 +1396,48 @@
     if (e.key === "Escape") { closeComp(); closeBel(); }
   });
 
+  // ---------- role gating ----------
+  function applyRole() {
+    var ro = !state.canWrite;
+    ["addBtn", "belarcBtn", "firmeBtn"].forEach(function (id) {
+      var el = document.getElementById(id); if (el) el.hidden = ro;
+    });
+    // admin-only menu items
+    ["impJson", "belarcMenu", "clearBtn"].forEach(function (id) {
+      var el = document.getElementById(id); if (el) el.hidden = ro;
+    });
+    var badge = document.getElementById("roleBadge");
+    badge.classList.remove("setup");
+    if (state.role === "client") {
+      var firm = companies.map(function (c) { return c.nume; }).join(", ");
+      badge.textContent = "Vizualizare" + (firm ? " • " + firm : "") + " — doar citire" + (state.email ? "  (" + state.email + ")" : "");
+      badge.hidden = false;
+    } else if (state.setup) {
+      badge.textContent = "⚠ Mod setup: acces fără login. Configurează Cloudflare Access + TEAM_DOMAIN/ACCESS_AUD.";
+      badge.classList.add("setup");
+      badge.hidden = false;
+    } else {
+      badge.hidden = true;
+    }
+  }
+
   // ---------- go ----------
   initStaticSelects();
-  loadCompanies();
-  load();
-  migrate();
-  render();
   applyThemeLabel();
+  boot().then(function () {
+    applyRole();
+    render();
+    refreshCompanyList();
+  }).catch(function (e) {
+    var main = document.querySelector("main");
+    if (e && e.status === 403) {
+      main.innerHTML = '<div style="max-width:520px;margin:60px auto;text-align:center;padding:30px;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);">' +
+        '<h2 style="margin:0 0 8px;">Acces neautorizat</h2>' +
+        '<p style="color:var(--ink-2)">Contul <strong>' + esc((e.body && e.body.email) || state.email || "") + '</strong> nu are acces la acest inventar.</p>' +
+        '<p style="color:var(--ink-3);font-size:13px">Cere administratorului NCS să te adauge la o firmă (email vizualizare) sau ca administrator.</p></div>';
+    } else {
+      main.innerHTML = '<div style="max-width:520px;margin:60px auto;text-align:center;color:var(--ink-2)"><h2>Eroare la încărcare</h2><p>' + esc(e.message || String(e)) + '</p></div>';
+    }
+  });
 })();
 </script>

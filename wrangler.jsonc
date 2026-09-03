@@ -1,11 +1,33 @@
 {
-  // Cloudflare Worker cu static assets - aplicatia Inventar Echipamente NCS.
+  // Cloudflare Worker - aplicatia Inventar Echipamente NCS.
+  // API (D1) + static assets + roluri (admin NCS / client read-only) prin Cloudflare Access.
   // Deploy: npx wrangler deploy
   "name": "app-echipamente",
+  "main": "src/worker.js",
   "compatibility_date": "2025-09-01",
   "workers_dev": true,
   "assets": {
-    "directory": "./public"
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "inventar-echipamente",
+      "database_id": "9f9e97e1-3a94-4120-8b29-385d20a377c9"
+    }
+  ],
+  "vars": {
+    // Oricine cu email pe acest domeniu = admin (vede/editeaza tot).
+    "ADMIN_DOMAIN": "netcomm.ro",
+    // Admini suplimentari (email-uri separate prin virgula), optional.
+    "ADMIN_EMAILS": "",
+    // Verificare securizata Cloudflare Access (se completeaza DUPA ce se creeaza aplicatia Access):
+    //   TEAM_DOMAIN ex: "netcomm.cloudflareaccess.com"
+    //   ACCESS_AUD  = tag-ul AUD al aplicatiei Access
+    // Cat timp sunt goale, aplicatia e in MOD SETUP (acces = admin) - de completat urgent dupa Access.
+    "TEAM_DOMAIN": "",
+    "ACCESS_AUD": ""
   },
   "routes": [
     { "pattern": "app.netcomm.ro", "custom_domain": true }
