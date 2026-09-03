@@ -461,7 +461,10 @@
           </div>
           <div class="field">
             <label for="f_serial">Serial</label>
-            <input id="f_serial" class="mono" placeholder="ex. PF668NF0">
+            <div style="display:flex; gap:7px;">
+              <input id="f_serial" class="mono" style="flex:1; min-width:0;" placeholder="ex. PF668NF0">
+              <button type="button" class="btn" id="lenovoBtn" title="Verifică garanția la Lenovo după serial" style="padding:9px 11px; white-space:nowrap;">↻ Garanție Lenovo</button>
+            </div>
           </div>
           <div class="field">
             <label for="f_user">Utilizator / Locație</label>
@@ -1441,6 +1444,29 @@
   document.getElementById("compCancelEdit").addEventListener("click", resetCompForm);
   compOverlay.addEventListener("click", function (e) { if (e.target === compOverlay) closeComp(); });
   document.getElementById("newCompanyBtn").addEventListener("click", quickAddCompany);
+
+  // Verificare garantie Lenovo dupa serial
+  function lenovoLookup() {
+    var f = els.form;
+    var serial = f.f_serial.value.trim();
+    if (!serial) { els.formErr.textContent = "Completează serialul întâi."; f.f_serial.focus(); return; }
+    var btn = document.getElementById("lenovoBtn");
+    var old = btn.textContent; btn.disabled = true; btn.textContent = "…";
+    els.formErr.textContent = "";
+    api("GET", "/api/lenovo?serial=" + encodeURIComponent(serial)).then(function (r) {
+      if (!r.ok) { els.formErr.textContent = "Lenovo: " + (r.msg || "serial negăsit"); return; }
+      if (r.warrantyEnd) f.f_garantie.value = r.warrantyEnd;
+      if (r.warrantyStart && !f.f_achizitie.value) f.f_achizitie.value = r.warrantyStart;
+      if (r.model && !f.f_marca.value.trim()) f.f_marca.value = "Lenovo " + r.model;
+      if (r.procesor && !f.f_procesor.value.trim()) f.f_procesor.value = r.procesor;
+      if (r.memorie && !f.f_memorie.value.trim()) f.f_memorie.value = r.memorie;
+      if (r.stocare && !f.f_stocare.value.trim()) f.f_stocare.value = r.stocare;
+      toast("Garanție Lenovo: " + (r.status || "completată") + (r.warrantyEnd ? " (până " + r.warrantyEnd + ")" : ""));
+    }).catch(function (e) {
+      els.formErr.textContent = "Eroare Lenovo: " + (e.message || e);
+    }).then(function () { btn.disabled = false; btn.textContent = old; });
+  }
+  document.getElementById("lenovoBtn").addEventListener("click", lenovoLookup);
 
   function openBelWrap() { menu.classList.remove("open"); openBel(); }
   document.getElementById("belarcBtn").addEventListener("click", openBel);

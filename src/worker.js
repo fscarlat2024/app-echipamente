@@ -142,6 +142,41 @@ async function handleApi(request, env, url) {
     });
   }
 
+  // ---- verificare garantie Lenovo dupa serial (admin) ----
+  if (path === "/api/lenovo" && method === "GET") {
+    if (role.kind !== "admin") return json({ error: "forbidden" }, 403);
+    var serial = String(url.searchParams.get("serial") || "").trim();
+    if (!serial) return json({ ok: false, error: "serial_required" }, 400);
+    try {
+      var lr = await fetch("https://pcsupport.lenovo.com/us/en/api/v4/upsell/redport/getIbaseInfo", {
+        method: "POST",
+        headers: { "content-type": "application/json", "accept": "application/json", "user-agent": "Mozilla/5.0" },
+        body: JSON.stringify({ serialNumber: serial })
+      });
+      var lj = await lr.json();
+      if (!lj || lj.code !== 0 || !lj.data) {
+        return json({ ok: false, error: "not_found", msg: (lj && lj.msg && lj.msg.desc) || "Serial negasit la Lenovo" });
+      }
+      var d = lj.data, mi = d.machineInfo || {};
+      var end = (d.currentWarranty && d.currentWarranty.endDate) || "";
+      var all = (d.baseWarranties || []).concat(d.upgradeWarranties || []);
+      all.forEach(function (w) { if (w.endDate && w.endDate > end) end = w.endDate; });
+      var spec = {};
+      String(mi.specification || "").replace(/<tr><td>([^<]+)<\/td><td>([\s\S]*?)<\/td><\/tr>/g, function (m, k, v) {
+        spec[k.trim().toLowerCase()] = v.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(); return m;
+      });
+      return json({
+        ok: true, serial: mi.serial || serial, model: mi.productName || "",
+        warrantyStart: mi.baseStartDate || mi.shipDate || "",
+        warrantyEnd: end, status: d.warrantyStatus || "", oow: !!d.oow,
+        procesor: spec["processor"] || "", memorie: spec["memory"] || "",
+        stocare: spec["hard drive"] || spec["storage"] || ""
+      });
+    } catch (e) {
+      return json({ ok: false, error: "lenovo_error", detail: String(e && e.message || e) });
+    }
+  }
+
   // ---- toate scrierile: doar admin ----
   var isWrite = (method === "POST" || method === "PUT" || method === "DELETE");
   if (isWrite && role.kind !== "admin") return json({ error: "forbidden" }, 403);
