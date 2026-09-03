@@ -4,6 +4,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root {
     --bg: #eef1f6;
@@ -574,12 +575,18 @@
     </div>
     <div class="modal-body">
       <p style="margin:0 0 12px; font-size:13px; color:var(--ink-2);">
-        Deschide raportul <strong>Belarc Advisor</strong> și lipește tot textul mai jos (Ctrl+A, Ctrl+C în pagina Belarc),
-        sau încarcă fișierul <strong>.html</strong> / <strong>.txt</strong> al raportului. Extrag automat câmpurile și le poți verifica înainte de salvare.
+        Încarcă fișierul <strong>PDF</strong> al raportului <strong>Belarc Advisor</strong> (sau <strong>.html</strong> / <strong>.txt</strong>),
+        ori lipește tot textul mai jos. Extrag automat câmpurile și le poți verifica/corecta înainte de salvare.
+        <br><span style="font-size:11.5px; color:var(--ink-3);">Notă: PDF-urile scanate (imagine) nu conțin text — pentru ele copiază manual datele.</span>
       </p>
+      <div class="field" style="margin-bottom:12px;">
+        <label for="belCompany">Alocă direct firmei</label>
+        <select id="belCompany"></select>
+        <span class="hint">Echipamentul importat va fi alocat automat acestei firme (poți schimba în formular).</span>
+      </div>
       <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
-        <button type="button" class="btn" id="belFileBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 3h14"/></svg>Încarcă fișier Belarc</button>
-        <input type="file" id="belFile" accept=".html,.htm,.txt,text/html,text/plain" hidden>
+        <button type="button" class="btn" id="belFileBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 3h14"/></svg>Încarcă fișier Belarc (PDF / HTML)</button>
+        <input type="file" id="belFile" accept=".pdf,.html,.htm,.txt,application/pdf,text/html,text/plain" hidden>
       </div>
       <div class="field">
         <label for="belText">Text raport Belarc</label>
@@ -929,7 +936,7 @@
       f.reset();
       f.f_tip.value = (prefill && prefill.tip) || TYPES[0];
       f.f_status.value = "Activ";
-      fillCompanySelect(f.f_company, "");
+      fillCompanySelect(f.f_company, (prefill && prefill.companyId) || "");
       if (prefill) {
         f.f_nume.value = prefill.nume || ""; f.f_marca.value = prefill.marca || "";
         f.f_serial.value = prefill.serial || ""; f.f_procesor.value = prefill.procesor || "";
@@ -1264,6 +1271,7 @@
     document.getElementById("belErr").textContent = "";
     document.getElementById("belPreview").style.display = "none";
     document.getElementById("belUse").hidden = true;
+    fillCompanySelect(document.getElementById("belCompany"), "");
     belOverlay.classList.add("open");
   }
   function closeBel() { belOverlay.classList.remove("open"); }
@@ -1340,16 +1348,19 @@
     document.getElementById("belErr").textContent = "";
     if (!clean1(txt)) { document.getElementById("belErr").textContent = "Lipește textul raportului sau încarcă un fișier."; return; }
     var p = parseBelarc(txt);
-    if (!p.nume && !p.marca && !p.serial && !p.procesor) {
-      document.getElementById("belErr").textContent = "Nu am putut detecta câmpuri Belarc. Verifică textul.";
-      return;
-    }
     belParsed = p;
     showBelPreview(p);
+    var any = p.nume || p.marca || p.serial || p.procesor || p.memorie || p.stocare || p.os || p.cheieWindows;
+    if (!any) {
+      document.getElementById("belErr").textContent = "Nu am detectat câmpuri automat — poți completa manual în formular (textul e vizibil mai sus).";
+    }
+    // permite oricum trecerea la formular (completare/corectare manuală)
     document.getElementById("belUse").hidden = false;
   }
 
   function belLoadFile(file) {
+    var isPdf = /\.pdf$/i.test(file.name) || file.type === "application/pdf";
+    if (isPdf) { belLoadPdf(file); return; }
     var r = new FileReader();
     r.onload = function () {
       var raw = String(r.result || "");
@@ -1364,6 +1375,62 @@
       doBelParse();
     };
     r.readAsText(file);
+  }
+
+  function belLoadPdf(file) {
+    var errEl = document.getElementById("belErr");
+    if (typeof window.pdfjsLib === "undefined") {
+      errEl.textContent = "Biblioteca PDF nu s-a încărcat (verifică conexiunea). Lipește textul manual.";
+      return;
+    }
+    errEl.textContent = "Se citește PDF-ul…";
+    try { window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; } catch (e) {}
+    var r = new FileReader();
+    r.onload = function () {
+      var task = window.pdfjsLib.getDocument({ data: new Uint8Array(r.result) });
+      task.promise.then(function (pdf) {
+        var pages = [];
+        for (var i = 1; i <= pdf.numPages; i++) pages.push(i);
+        return pages.reduce(function (chain, n) {
+          return chain.then(function (acc) {
+            return pdf.getPage(n).then(function (page) {
+              return page.getTextContent().then(function (tc) {
+                return acc + "\n" + reconstructLines(tc.items);
+              });
+            });
+          });
+        }, Promise.resolve(""));
+      }).then(function (text) {
+        errEl.textContent = "";
+        document.getElementById("belText").value = text.trim();
+        if (!text.trim()) {
+          errEl.textContent = "PDF fără text (probabil scanat). Copiază manual datele.";
+          return;
+        }
+        doBelParse();
+      }).catch(function (e) {
+        errEl.textContent = "Nu am putut citi PDF-ul: " + (e && e.message || e) + ". Lipește textul manual.";
+      });
+    };
+    r.onerror = function () { errEl.textContent = "Eroare la citirea fișierului."; };
+    r.readAsArrayBuffer(file);
+  }
+
+  // Reconstruieste linii din itemele text pdf.js pe baza coordonatei Y.
+  function reconstructLines(items) {
+    var lines = [], cur = null, curY = null;
+    items.forEach(function (it) {
+      var y = it.transform ? Math.round(it.transform[5]) : 0;
+      var s = it.str || "";
+      if (curY === null || Math.abs(y - curY) > 3) {
+        if (cur !== null) lines.push(cur);
+        cur = s; curY = y;
+      } else {
+        cur += (s && cur && !/\s$/.test(cur) ? " " : "") + s;
+      }
+    });
+    if (cur !== null) lines.push(cur);
+    return lines.join("\n");
   }
 
   // ---------- wiring: companies + belarc ----------
@@ -1382,6 +1449,7 @@
   document.getElementById("belParse").addEventListener("click", doBelParse);
   document.getElementById("belUse").addEventListener("click", function () {
     if (!belParsed) return;
+    belParsed.companyId = document.getElementById("belCompany").value || "";
     closeBel();
     openModal(null, belParsed);
   });
