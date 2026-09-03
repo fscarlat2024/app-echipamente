@@ -1294,7 +1294,9 @@
 
     // Serial
     m = t.match(/System Serial Number[:\s.]*\n?\s*([A-Za-z0-9][A-Za-z0-9\-\/]{2,40})/i);
-    if (m) out.serial = clean1(m[1]);
+    if (m) {
+      out.serial = clean1(m[1]).replace(/\s*(Chassis|Mainboard|Motherboard|Board|System|Serial|Number|Asset|Try|BelManage).*$/i, "").trim();
+    }
 
     // Processor
     m = t.match(/([\d.,]+\s*(?:gigahertz|GHz)[^\n]*?(?:Intel|AMD|Apple|Qualcomm)[^\n]*)/i);
@@ -1323,8 +1325,8 @@
 
     // Guess type from model
     var mk = (out.marca + " " + out.nume).toLowerCase();
-    if (/server|poweredge|proliant/.test(mk)) out.tip = "Server";
-    else if (/thinkpad|elitebook|probook|latitude|ideapad|vostro|inspiron|notebook|zbook|macbook|laptop|swift|vivobook|dream machines/.test(mk)) out.tip = "Laptop";
+    if (/server|poweredge|proliant|rack\b/.test(mk)) out.tip = "Server";
+    else if (/thinkpad|thinkbook|elitebook|probook|latitude|ideapad|yoga|legion|slim|vostro|inspiron|notebook|zbook|macbook|laptop|swift|spin|nitro|aspire|travelmate|extensa|vivobook|zenbook|expertbook|matebook|gram|spectre|envy|pavilion|omen|victus|\bxps\b|surface\s*(laptop|book|pro|go)|rog|tuf|dream machines/.test(mk)) out.tip = "Laptop";
     else out.tip = "Desktop";
 
     return out;
