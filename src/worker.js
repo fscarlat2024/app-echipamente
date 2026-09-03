@@ -60,8 +60,11 @@ async function verifyAccessJwt(token, team, aud) {
     var header = JSON.parse(new TextDecoder().decode(b64urlToBytes(parts[0])));
     var payload = JSON.parse(new TextDecoder().decode(b64urlToBytes(parts[1])));
     if (payload.exp && Date.now() / 1000 > payload.exp) return null;
-    var auds = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
-    if (aud && auds.indexOf(aud) === -1) return null;
+    if (payload.iss && payload.iss !== "https://" + team) return null;
+    if (aud) {
+      var auds = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+      if (auds.indexOf(aud) === -1) return null;
+    }
     var keys = await getJwks(team);
     if (!keys) return null;
     var jwk = keys.find(function (k) { return k.kid === header.kid; });
@@ -77,7 +80,7 @@ async function verifyAccessJwt(token, team, aud) {
 
 async function authenticate(request, env) {
   var aud = env.ACCESS_AUD, team = env.TEAM_DOMAIN;
-  if (aud && team) {
+  if (team) {
     var token = request.headers.get("Cf-Access-Jwt-Assertion");
     if (!token) return null;
     var payload = await verifyAccessJwt(token, team, aud);
