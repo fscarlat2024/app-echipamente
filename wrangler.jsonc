@@ -1,0 +1,12 @@
+{
+  // Cloudflare Worker cu static assets - aplicatia Inventar Echipamente NCS.
+  // Deploy: npx wrangler deploy
+  "name": "app-echipamente",
+  "compatibility_date": "2025-09-01",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public"
+  }
+  // Domeniu custom: se adauga dupa ce se decide subdomeniul liber (vezi README).
+  // Exemplu: "routes": [{ "pattern": "inventar.netcomm.ro", "custom_domain": true }]
+}

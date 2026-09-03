@@ -1,0 +1,1404 @@
+<meta charset="utf-8">
+<title>Inventar Echipamente</title>
+<meta name="description" content="Aplicație de inventar echipamente IT — adăugare, filtrare, alerte garanție și export.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #eef1f6;
+    --surface: #ffffff;
+    --surface-2: #f6f8fb;
+    --surface-3: #eceff4;
+    --border: #d6dce6;
+    --border-strong: #c2cad8;
+    --ink: #16202e;
+    --ink-2: #46536a;
+    --ink-3: #6b7889;
+    --accent: #2c5c97;
+    --accent-2: #3e7cc0;
+    --accent-soft: #e3ecf7;
+    --ring: #3e7cc0;
+    /* semantic */
+    --ok: #1f8a54;      --ok-bg: #e3f4ea;   --ok-bd:#b9e2c9;
+    --warn: #b5730d;    --warn-bg:#fbf0da;  --warn-bd:#f0d9a8;
+    --crit: #c33636;    --crit-bg:#fbe4e4;  --crit-bd:#f2c0c0;
+    --idle: #5a6a80;    --idle-bg:#e8ecf2;  --idle-bd:#d2dae6;
+    --shadow: 0 1px 2px rgba(16,32,46,.06), 0 8px 24px rgba(16,32,46,.06);
+    --shadow-lg: 0 12px 40px rgba(16,32,46,.22);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b1220;
+      --surface: #131c2b;
+      --surface-2: #182234;
+      --surface-3: #1e2a3e;
+      --border: #29374d;
+      --border-strong: #384b68;
+      --ink: #eaf0f8;
+      --ink-2: #a9b7cc;
+      --ink-3: #7d8da5;
+      --accent: #5b9be0;
+      --accent-2: #8fb8e6;
+      --accent-soft: #16273e;
+      --ring: #5b9be0;
+      --ok:#54c98a;  --ok-bg:#0f2c1e;  --ok-bd:#1e5238;
+      --warn:#e0a94a; --warn-bg:#2e2410; --warn-bd:#5a4620;
+      --crit:#eb6d6d; --crit-bg:#301616; --crit-bd:#5c2a2a;
+      --idle:#93a2ba; --idle-bg:#1b2536; --idle-bd:#31405a;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+      --shadow-lg: 0 12px 40px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1220;
+    --surface: #131c2b;
+    --surface-2: #182234;
+    --surface-3: #1e2a3e;
+    --border: #29374d;
+    --border-strong: #384b68;
+    --ink: #eaf0f8;
+    --ink-2: #a9b7cc;
+    --ink-3: #7d8da5;
+    --accent: #5b9be0;
+    --accent-2: #8fb8e6;
+    --accent-soft: #16273e;
+    --ring: #5b9be0;
+    --ok:#54c98a;  --ok-bg:#0f2c1e;  --ok-bd:#1e5238;
+    --warn:#e0a94a; --warn-bg:#2e2410; --warn-bd:#5a4620;
+    --crit:#eb6d6d; --crit-bg:#301616; --crit-bd:#5c2a2a;
+    --idle:#93a2ba; --idle-bg:#1b2536; --idle-bd:#31405a;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    --shadow-lg: 0 12px 40px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace; }
+  .tnum { font-variant-numeric: tabular-nums; }
+
+  /* ---- top bar ---- */
+  header {
+    position: sticky; top: 0; z-index: 20;
+    background: color-mix(in srgb, var(--surface) 86%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .bar {
+    max-width: 1280px; margin: 0 auto;
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 11px; margin-right: auto; }
+  .logo {
+    width: 38px; height: 38px; border-radius: 9px;
+    background: linear-gradient(150deg, var(--accent), var(--accent-2));
+    color: #fff; display: grid; place-items: center;
+    font-weight: 700; font-size: 14px; letter-spacing: .5px;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+  .brand h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: -.2px; }
+  .brand p { margin: 0; font-size: 11.5px; color: var(--ink-3); letter-spacing: .3px; }
+
+  .btn {
+    font: inherit; font-weight: 500; font-size: 13px;
+    border: 1px solid var(--border-strong); background: var(--surface);
+    color: var(--ink); padding: 8px 13px; border-radius: 8px;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
+    transition: background .13s, border-color .13s, transform .05s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--surface-3); border-color: var(--ink-3); }
+  .btn:active { transform: translateY(1px); }
+  .btn svg { width: 16px; height: 16px; }
+  .btn-primary {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 32%, transparent);
+  }
+  .btn-primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
+  .btn-icon { padding: 8px; }
+  .menu-wrap { position: relative; }
+  .menu {
+    position: absolute; right: 0; top: calc(100% + 6px);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: var(--shadow-lg); padding: 6px;
+    min-width: 190px; display: none; z-index: 30;
+  }
+  .menu.open { display: block; }
+  .menu button {
+    width: 100%; text-align: left; background: none; border: 0;
+    font: inherit; font-size: 13px; color: var(--ink); padding: 9px 10px;
+    border-radius: 7px; cursor: pointer; display: flex; align-items: center; gap: 9px;
+  }
+  .menu button:hover { background: var(--surface-3); }
+  .menu button.danger { color: var(--crit); }
+  .menu hr { border: 0; border-top: 1px solid var(--border); margin: 5px 2px; }
+
+  main { max-width: 1280px; margin: 0 auto; padding: 20px; }
+
+  /* ---- KPI tiles ---- */
+  .kpis {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+    gap: 12px; margin-bottom: 18px;
+  }
+  .kpi {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow);
+    position: relative; overflow: hidden;
+  }
+  .kpi::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--k, var(--accent));
+  }
+  .kpi .lab {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
+    color: var(--ink-3); font-weight: 600; display: flex; align-items: center; gap: 6px;
+  }
+  .kpi .val { font-size: 30px; font-weight: 700; margin-top: 5px; letter-spacing: -1px; }
+  .kpi .sub { font-size: 11.5px; color: var(--ink-3); margin-top: 1px; }
+  .kpi.clickable { cursor: pointer; transition: border-color .13s, transform .05s; }
+  .kpi.clickable:hover { border-color: var(--border-strong); }
+  .kpi.clickable:active { transform: translateY(1px); }
+
+  /* ---- toolbar ---- */
+  .toolbar {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    margin-bottom: 14px;
+  }
+  .search {
+    position: relative; flex: 1 1 260px; min-width: 200px;
+  }
+  .search svg {
+    position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 16px; color: var(--ink-3); pointer-events: none;
+  }
+  .search input {
+    width: 100%; font: inherit; font-size: 13.5px;
+    padding: 9px 12px 9px 34px; border-radius: 9px;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--ink);
+  }
+  select.filter {
+    font: inherit; font-size: 13px; padding: 9px 12px; border-radius: 9px;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--ink);
+    cursor: pointer; max-width: 190px;
+  }
+  input:focus-visible, select:focus-visible, .btn:focus-visible, th button:focus-visible {
+    outline: 2px solid var(--ring); outline-offset: 2px;
+  }
+
+  /* ---- table ---- */
+  .table-wrap {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 880px; }
+  thead th {
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+    color: var(--ink-3); font-weight: 600; padding: 0;
+    background: var(--surface-2); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0;
+  }
+  thead th button {
+    all: unset; box-sizing: border-box; cursor: pointer;
+    padding: 11px 14px; width: 100%; display: flex; align-items: center; gap: 5px;
+    font: inherit; font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+    color: var(--ink-3); font-weight: 600;
+  }
+  thead th.static { padding: 11px 14px; }
+  thead th button:hover { color: var(--ink); }
+  th .arr { font-size: 9px; opacity: 0; }
+  th.sorted .arr { opacity: 1; color: var(--accent); }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover td { background: var(--surface-2); }
+  .name-cell { font-weight: 600; color: var(--ink); }
+  .muted { color: var(--ink-3); }
+  .type-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; color: var(--ink-2);
+  }
+  .type-dot { width: 8px; height: 8px; border-radius: 3px; flex: none; background: var(--accent); }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+    border: 1px solid transparent; white-space: nowrap;
+  }
+  .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .st-activ { color: var(--ok); background: var(--ok-bg); border-color: var(--ok-bd); }
+  .st-service { color: var(--warn); background: var(--warn-bg); border-color: var(--warn-bd); }
+  .st-rezerva { color: var(--idle); background: var(--idle-bg); border-color: var(--idle-bd); }
+  .st-casat { color: var(--crit); background: var(--crit-bg); border-color: var(--crit-bd); }
+
+  .war { display: inline-flex; flex-direction: column; gap: 1px; }
+  .war .chip {
+    align-self: flex-start;
+    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px;
+    border: 1px solid transparent;
+  }
+  .war .date { font-size: 10.5px; color: var(--ink-3); }
+  .w-ok { color: var(--ok); background: var(--ok-bg); border-color: var(--ok-bd); }
+  .w-warn { color: var(--warn); background: var(--warn-bg); border-color: var(--warn-bd); }
+  .w-crit { color: var(--crit); background: var(--crit-bg); border-color: var(--crit-bd); }
+  .w-none { color: var(--ink-3); background: var(--surface-3); border-color: var(--border); }
+
+  .row-actions { display: flex; gap: 4px; justify-content: flex-end; }
+  .icon-btn {
+    all: unset; cursor: pointer; padding: 6px; border-radius: 7px;
+    color: var(--ink-3); display: grid; place-items: center;
+  }
+  .icon-btn:hover { background: var(--surface-3); color: var(--ink); }
+  .icon-btn.del:hover { background: var(--crit-bg); color: var(--crit); }
+  .icon-btn svg { width: 16px; height: 16px; }
+  .icon-btn:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+
+  .empty { padding: 54px 20px; text-align: center; color: var(--ink-3); }
+  .empty svg { width: 40px; height: 40px; opacity: .5; margin-bottom: 10px; }
+  .empty p { margin: 4px 0; }
+
+  .foot {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+    padding: 14px 4px 4px; color: var(--ink-3); font-size: 12px;
+  }
+
+  /* ---- modal ---- */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(11,18,32,.55);
+    backdrop-filter: blur(3px); display: none; z-index: 50;
+    align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; box-shadow: var(--shadow-lg);
+    width: 100%; max-width: 640px; overflow: hidden;
+    animation: pop .16s ease-out;
+  }
+  @keyframes pop { from { transform: translateY(8px) scale(.99); opacity: 0; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .modal { animation: none; } }
+  .modal-head {
+    padding: 18px 22px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-head h2 { margin: 0; font-size: 17px; font-weight: 600; }
+  .modal-body { padding: 20px 22px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field.full { grid-column: 1 / -1; }
+  .field label {
+    font-size: 11.5px; font-weight: 600; color: var(--ink-2);
+    text-transform: uppercase; letter-spacing: .4px;
+  }
+  .field label .req { color: var(--crit); }
+  .field input, .field select, .field textarea {
+    font: inherit; font-size: 13.5px; padding: 9px 11px; border-radius: 8px;
+    border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--ink);
+    width: 100%;
+  }
+  .field textarea { resize: vertical; min-height: 62px; }
+  .field .hint { font-size: 11px; color: var(--ink-3); }
+  .field input.mono { font-family: "IBM Plex Mono", monospace; }
+  .modal-foot {
+    padding: 15px 22px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    background: var(--surface-2);
+  }
+  .modal-foot .right { display: flex; gap: 10px; margin-left: auto; }
+  .err { color: var(--crit); font-size: 12.5px; font-weight: 500; }
+
+  .toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--ink); color: var(--bg); padding: 11px 18px; border-radius: 10px;
+    font-size: 13px; font-weight: 500; box-shadow: var(--shadow-lg);
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 60;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .comp-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 13px; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--surface-2); margin-bottom: 8px;
+  }
+  .comp-row .ci { flex: 1; min-width: 0; }
+  .comp-row .cn { font-weight: 600; font-size: 13.5px; }
+  .comp-row .cm { font-size: 11.5px; color: var(--ink-3); margin-top: 1px; }
+  .comp-row .badge {
+    font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent); white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (max-width: 620px) {
+    .grid2 { grid-template-columns: 1fr; }
+    .brand p { display: none; }
+    .kpi .val { font-size: 25px; }
+  }
+</style>
+
+<header>
+  <div class="bar">
+    <div class="brand">
+      <div class="logo">NCS</div>
+      <div>
+        <h1>Inventar Echipamente</h1>
+        <p>Net Communications Systems</p>
+      </div>
+    </div>
+    <button class="btn" id="belarcBtn" title="Import din Belarc">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M7 8h6M7 11h4"/></svg>
+      Import Belarc
+    </button>
+    <button class="btn" id="firmeBtn" title="Gestionează firmele">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M15 9h.01M9 13h.01M15 13h.01M9 17h.01M15 17h.01"/></svg>
+      Firme
+    </button>
+    <button class="btn btn-primary" id="addBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Adaugă echipament
+    </button>
+    <div class="menu-wrap">
+      <button class="btn btn-icon" id="moreBtn" title="Mai multe" aria-haspopup="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <div class="menu" id="moreMenu">
+        <button id="expCsv"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>Export CSV</button>
+        <button id="expJson"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>Export JSON (backup)</button>
+        <button id="impJson"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 3h14"/></svg>Import JSON</button>
+        <button id="belarcMenu"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Import din Belarc</button>
+        <hr>
+        <button id="themeBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span id="themeLbl">Temă întunecată</span></button>
+        <hr>
+        <button class="danger" id="clearBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>Golește tot inventarul</button>
+      </div>
+    </div>
+    <input type="file" id="fileInput" accept="application/json,.json" hidden>
+  </div>
+</header>
+
+<main>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="toolbar">
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+      <input id="q" type="search" placeholder="Caută nume, serial, marcă, utilizator, firmă…" autocomplete="off">
+    </div>
+    <select class="filter" id="fType"><option value="">Toate tipurile</option></select>
+    <select class="filter" id="fStatus"><option value="">Toate statusurile</option></select>
+    <select class="filter" id="fClient"><option value="">Toți clienții</option></select>
+    <select class="filter" id="fWar">
+      <option value="">Orice garanție</option>
+      <option value="exp">Expirată</option>
+      <option value="soon">Expiră ≤ 90 zile</option>
+      <option value="ok">Validă</option>
+    </select>
+  </div>
+
+  <div class="table-wrap">
+    <div class="scroll">
+      <table>
+        <thead><tr id="head"></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="empty" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
+      <p id="emptyMain">Niciun echipament încă.</p>
+      <p style="font-size:12.5px">Apasă <strong>Adaugă echipament</strong> sau importă un backup JSON.</p>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span id="count"></span>
+    <span>Datele se salvează local, în acest browser. Fă export JSON pentru backup.</span>
+  </div>
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <div class="modal-head">
+      <h2 id="mTitle">Adaugă echipament</h2>
+      <button class="icon-btn" id="closeModal" aria-label="Închide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <form id="form">
+      <div class="modal-body">
+        <div class="grid2">
+          <div class="field full">
+            <label for="f_nume">Nume / Hostname <span class="req">*</span></label>
+            <input id="f_nume" required placeholder="ex. FLORIN-NCS01 sau FortiGate 100F">
+          </div>
+          <div class="field">
+            <label for="f_tip">Tip <span class="req">*</span></label>
+            <select id="f_tip" required></select>
+          </div>
+          <div class="field">
+            <label for="f_status">Status</label>
+            <select id="f_status"></select>
+          </div>
+          <div class="field">
+            <label for="f_marca">Marcă / Model</label>
+            <input id="f_marca" placeholder="ex. Lenovo ThinkPad T14 Gen 6">
+          </div>
+          <div class="field">
+            <label for="f_serial">Serial</label>
+            <input id="f_serial" class="mono" placeholder="ex. PF668NF0">
+          </div>
+          <div class="field">
+            <label for="f_user">Utilizator / Locație</label>
+            <input id="f_user" placeholder="ex. Florin S. / Rack #2">
+          </div>
+          <div class="field">
+            <label for="f_company">Firmă alocată</label>
+            <div style="display:flex; gap:7px;">
+              <select id="f_company" style="flex:1;"></select>
+              <button type="button" class="btn" id="newCompanyBtn" title="Firmă nouă" style="padding:9px 11px;">＋</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="f_achizitie">Data achiziție</label>
+            <input id="f_achizitie" type="date">
+          </div>
+          <div class="field">
+            <label for="f_garantie">Expirare garanție</label>
+            <input id="f_garantie" type="date">
+          </div>
+
+          <div class="field full">
+            <div style="display:flex; align-items:center; gap:8px; margin-top:2px;">
+              <span style="font-size:11.5px; font-weight:600; color:var(--ink-2); text-transform:uppercase; letter-spacing:.4px;">Detalii tehnice (Belarc)</span>
+              <span style="flex:1; height:1px; background:var(--border);"></span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="f_procesor">Procesor</label>
+            <input id="f_procesor" placeholder="ex. Intel Core i5-10210U">
+          </div>
+          <div class="field">
+            <label for="f_memorie">Memorie</label>
+            <input id="f_memorie" placeholder="ex. 16 GB">
+          </div>
+          <div class="field">
+            <label for="f_stocare">Stocare</label>
+            <input id="f_stocare" placeholder="ex. 512 GB SSD">
+          </div>
+          <div class="field">
+            <label for="f_os">Sistem de operare</label>
+            <input id="f_os" placeholder="ex. Windows 11 Pro (x64)">
+          </div>
+          <div class="field full">
+            <label for="f_key">Cheie Windows</label>
+            <input id="f_key" class="mono" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX">
+          </div>
+
+          <div class="field full">
+            <label for="f_note">Note</label>
+            <textarea id="f_note" placeholder="Contract, particularități, istoric service…"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <span class="err" id="formErr"></span>
+        <div class="right">
+          <button type="button" class="btn" id="cancelBtn">Renunță</button>
+          <button type="submit" class="btn btn-primary" id="saveBtn">Salvează</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Firme / Companies -->
+<div class="overlay" id="compOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="compTitle" style="max-width:680px;">
+    <div class="modal-head">
+      <h2 id="compTitle">Firme</h2>
+      <button class="icon-btn" id="closeComp" aria-label="Închide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <form id="compForm" class="grid2" style="margin-bottom:18px; align-items:end;">
+        <div class="field">
+          <label for="c_nume">Nume firmă <span class="req">*</span></label>
+          <input id="c_nume" required placeholder="ex. AJ Brand Energy">
+        </div>
+        <div class="field">
+          <label for="c_contact">Contact</label>
+          <input id="c_contact" placeholder="persoană / telefon / email">
+        </div>
+        <div class="field">
+          <label for="c_cui">CUI / detalii</label>
+          <input id="c_cui" placeholder="ex. RO12345678">
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <div style="display:flex; gap:8px;">
+            <button type="submit" class="btn btn-primary" id="compSaveBtn" style="flex:1;">Adaugă firmă</button>
+            <button type="button" class="btn" id="compCancelEdit" hidden>Renunță</button>
+          </div>
+        </div>
+        <input type="hidden" id="c_id">
+      </form>
+      <div id="compList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Import Belarc -->
+<div class="overlay" id="belOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="belTitle" style="max-width:660px;">
+    <div class="modal-head">
+      <h2 id="belTitle">Import din Belarc</h2>
+      <button class="icon-btn" id="closeBel" aria-label="Închide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p style="margin:0 0 12px; font-size:13px; color:var(--ink-2);">
+        Deschide raportul <strong>Belarc Advisor</strong> și lipește tot textul mai jos (Ctrl+A, Ctrl+C în pagina Belarc),
+        sau încarcă fișierul <strong>.html</strong> / <strong>.txt</strong> al raportului. Extrag automat câmpurile și le poți verifica înainte de salvare.
+      </p>
+      <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+        <button type="button" class="btn" id="belFileBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 3h14"/></svg>Încarcă fișier Belarc</button>
+        <input type="file" id="belFile" accept=".html,.htm,.txt,text/html,text/plain" hidden>
+      </div>
+      <div class="field">
+        <label for="belText">Text raport Belarc</label>
+        <textarea id="belText" style="min-height:150px; font-family:'IBM Plex Mono',monospace; font-size:12px;" placeholder="Lipește aici conținutul raportului Belarc…"></textarea>
+      </div>
+      <div id="belPreview" style="display:none; margin-top:14px; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:12px 14px;">
+        <div style="font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.4px; color:var(--ink-3); margin-bottom:8px;">Câmpuri detectate</div>
+        <div id="belFields" style="display:grid; grid-template-columns:1fr 1fr; gap:6px 16px; font-size:12.5px;"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <span class="err" id="belErr"></span>
+      <div class="right">
+        <button type="button" class="btn" id="belCancel">Renunță</button>
+        <button type="button" class="btn btn-primary" id="belParse">Detectează câmpuri</button>
+        <button type="button" class="btn btn-primary" id="belUse" hidden>Completează formularul →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var KEY = "ncs.inventar.echipamente.v1";
+  var COMP_KEY = "ncs.inventar.firme.v1";
+  var THEME_KEY = "ncs.inventar.theme";
+
+  var TYPES = ["Laptop","Desktop","Server","Firewall","Switch","Access Point","Router","Imprimantă","Monitor","UPS","NAS","Telefon","Tabletă","Altele"];
+  var STATUSES = ["Activ","În service","Rezervă","Casat"];
+  var STATUS_CLASS = { "Activ":"st-activ", "În service":"st-service", "Rezervă":"st-rezerva", "Casat":"st-casat" };
+  // stable-ish accent dots per type
+  var TYPE_COLORS = {
+    "Laptop":"#3e7cc0","Desktop":"#2c5c97","Server":"#6d4bd0","Firewall":"#c33636",
+    "Switch":"#1f8a54","Access Point":"#0e9aa7","Router":"#b5730d","Imprimantă":"#8a6d1f",
+    "Monitor":"#5a6a80","UPS":"#c07a1f","NAS":"#7a4bd0","Telefon":"#1f8a8a","Tabletă":"#4b7ad0","Altele":"#6b7889"
+  };
+
+  var els = {
+    kpis: document.getElementById("kpis"),
+    q: document.getElementById("q"),
+    fType: document.getElementById("fType"),
+    fStatus: document.getElementById("fStatus"),
+    fClient: document.getElementById("fClient"),
+    fWar: document.getElementById("fWar"),
+    head: document.getElementById("head"),
+    rows: document.getElementById("rows"),
+    empty: document.getElementById("empty"),
+    emptyMain: document.getElementById("emptyMain"),
+    count: document.getElementById("count"),
+    overlay: document.getElementById("overlay"),
+    form: document.getElementById("form"),
+    mTitle: document.getElementById("mTitle"),
+    formErr: document.getElementById("formErr"),
+    toast: document.getElementById("toast")
+  };
+
+  var data = [];
+  var companies = [];
+  var editingId = null;
+  var editingCompId = null;
+  var belParsed = null;
+  var sort = { key: "nume", dir: 1 };
+
+  // ---------- storage ----------
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) { data = JSON.parse(raw) || []; return; }
+    } catch (e) {}
+    data = seed();
+    save();
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+  }
+  function loadCompanies() {
+    try {
+      var raw = localStorage.getItem(COMP_KEY);
+      if (raw) { companies = JSON.parse(raw) || []; return; }
+    } catch (e) {}
+    companies = [];
+  }
+  function saveCompanies() {
+    try { localStorage.setItem(COMP_KEY, JSON.stringify(companies)); } catch (e) {}
+  }
+  function uid() { return "eq_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function cid() { return "co_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+  // Migrate legacy free-text `client` into company records + companyId.
+  function migrate() {
+    var changed = false, cChanged = false;
+    data.forEach(function (it) {
+      if (typeof it.companyId !== "undefined") return;
+      var name = (it.client || "").trim();
+      delete it.client;
+      if (!name) { it.companyId = ""; changed = true; return; }
+      var c = findCompanyByName(name);
+      if (!c) { c = { id: cid(), nume: name, contact: "", cui: "", note: "" }; companies.push(c); cChanged = true; }
+      it.companyId = c.id; changed = true;
+    });
+    if (changed) save();
+    if (cChanged) saveCompanies();
+  }
+  function findCompanyByName(name) {
+    var n = name.toLowerCase();
+    return companies.find(function (c) { return c.nume.toLowerCase() === n; }) || null;
+  }
+  function companyName(id) {
+    if (!id) return "";
+    var c = companies.find(function (x) { return x.id === id; });
+    return c ? c.nume : "";
+  }
+  function equipCountFor(id) {
+    return data.filter(function (it) { return it.companyId === id; }).length;
+  }
+
+  function seed() {
+    function d(y,m,day){ return y+"-"+String(m).padStart(2,"0")+"-"+String(day).padStart(2,"0"); }
+    return [
+      { id:uid(), nume:"FortiGate 100F", tip:"Firewall", marca:"Fortinet FG-100F", serial:"FG100FTK25012345", user:"Rack #2 Network", client:"aj brand", achizitie:d(2024,3,12), garantie:d(2027,3,12), status:"Activ", note:"HA principal, SD-WAN dual ISP" },
+      { id:uid(), nume:"FortiSwitch 124F", tip:"Switch", marca:"Fortinet FS-124F-POE", serial:"S124FTK25009911", user:"Rack #2", client:"aj brand", achizitie:d(2024,3,12), garantie:d(2026,10,1), status:"Activ", note:"Stack LAG catre FortiGate" },
+      { id:uid(), nume:"FortiAP 231F", tip:"Access Point", marca:"Fortinet FAP-231F", serial:"FP231FTF2209AJ9N", user:"Birou parter", client:"aj brand", achizitie:d(2023,6,5), garantie:d(2026,6,5), status:"Activ", note:"Wi-Fi 6, canal 36 / 80MHz" },
+      { id:uid(), nume:"FLORIN-NCS01", tip:"Laptop", marca:"Lenovo ThinkPad T14 Gen 6", serial:"PF668NF0", user:"Florin S.", client:"NCS intern", achizitie:d(2025,1,20), garantie:d(2028,1,20), status:"Activ", note:"BitLocker XTS-AES256, Entra registered" },
+      { id:uid(), nume:"NCS-DIANA", tip:"Desktop", marca:"Dell OptiPlex 7010", serial:"DL7010X92", user:"Diana", client:"NCS intern", achizitie:d(2022,9,1), garantie:d(2025,9,1), status:"Activ", note:"De verificat BitLocker" },
+      { id:uid(), nume:"NAS Synology DS1621+", tip:"NAS", marca:"Synology DS1621+", serial:"2140SQR004521", user:"Server room", client:"NCS intern", achizitie:d(2024,2,10), garantie:d(2027,2,10), status:"Activ", note:"Backup imutabil WORM, 80TB SHR" },
+      { id:uid(), nume:"UPS APC SMT1500", tip:"UPS", marca:"APC Smart-UPS 1500", serial:"AS1526110044", user:"Rack #1", client:"NCS intern", achizitie:d(2021,5,15), garantie:d(2024,5,15), status:"Activ", note:"Baterie de inlocuit" },
+      { id:uid(), nume:"HP LaserJet M428", tip:"Imprimantă", marca:"HP LaserJet Pro M428fdw", serial:"CNBRK12345", user:"Contabilitate", client:"scpsincron", achizitie:d(2023,11,3), garantie:d(2025,11,3), status:"Activ", note:"PCL v6, IP direct" },
+      { id:uid(), nume:"Laptop rezervă 01", tip:"Laptop", marca:"HP EliteBook 840 G8", serial:"5CG1234ABC", user:"—", client:"NCS intern", achizitie:d(2022,4,1), garantie:d(2025,4,1), status:"Rezervă", note:"Reimaginat, gata de alocare" },
+      { id:uid(), nume:"NCS-VECHI-07", tip:"Desktop", marca:"Dell Vostro 3670", serial:"DLV3670OLD", user:"—", client:"NCS intern", achizitie:d(2018,7,1), garantie:d(2021,7,1), status:"Casat", note:"Dezafectat, disc sters" }
+    ];
+  }
+
+  // ---------- helpers ----------
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c];
+    });
+  }
+  function fmtDate(iso) {
+    if (!iso) return "";
+    var p = iso.split("-");
+    if (p.length !== 3) return iso;
+    return p[2] + "." + p[1] + "." + p[0];
+  }
+  function daysUntil(iso) {
+    if (!iso) return null;
+    var t = new Date(iso + "T00:00:00");
+    if (isNaN(t)) return null;
+    var now = new Date(); now.setHours(0,0,0,0);
+    return Math.round((t - now) / 86400000);
+  }
+  function warInfo(iso) {
+    var d = daysUntil(iso);
+    if (d === null) return { cls:"w-none", txt:"—", date:"", d:null };
+    if (d < 0) return { cls:"w-crit", txt:"Expirată", date:fmtDate(iso), d:d };
+    if (d <= 90) return { cls:"w-warn", txt:d + (d === 1 ? " zi" : " zile"), date:fmtDate(iso), d:d };
+    return { cls:"w-ok", txt:"Validă", date:fmtDate(iso), d:d };
+  }
+  function toast(msg) {
+    els.toast.textContent = msg;
+    els.toast.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { els.toast.classList.remove("show"); }, 2400);
+  }
+
+  // ---------- filtering / sorting ----------
+  function filtered() {
+    var q = els.q.value.trim().toLowerCase();
+    var ft = els.fType.value, fs = els.fStatus.value, fc = els.fClient.value, fw = els.fWar.value;
+    var out = data.filter(function (it) {
+      if (ft && it.tip !== ft) return false;
+      if (fs && it.status !== fs) return false;
+      if (fc && (it.companyId || "") !== fc) return false;
+      if (fw) {
+        var d = daysUntil(it.garantie);
+        if (fw === "exp" && !(d !== null && d < 0)) return false;
+        if (fw === "soon" && !(d !== null && d >= 0 && d <= 90)) return false;
+        if (fw === "ok" && !(d !== null && d > 90)) return false;
+      }
+      if (q) {
+        var hay = [it.nume, it.marca, it.serial, it.user, companyName(it.companyId), it.tip, it.note,
+          it.procesor, it.memorie, it.stocare, it.os, it.cheieWindows].join(" ").toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+    out.sort(function (a, b) {
+      var k = sort.key, av, bv;
+      if (k === "garantie") { av = daysUntil(a.garantie); bv = daysUntil(b.garantie);
+        if (av === null) av = Infinity; if (bv === null) bv = Infinity;
+        return (av - bv) * sort.dir;
+      }
+      if (k === "companyId") { av = companyName(a.companyId).toLowerCase(); bv = companyName(b.companyId).toLowerCase(); }
+      else { av = (a[k] || "").toString().toLowerCase(); bv = (b[k] || "").toString().toLowerCase(); }
+      if (av < bv) return -1 * sort.dir;
+      if (av > bv) return 1 * sort.dir;
+      return 0;
+    });
+    return out;
+  }
+
+  // ---------- render ----------
+  var COLS = [
+    { key:"nume", label:"Nume", sortable:true },
+    { key:"tip", label:"Tip", sortable:true },
+    { key:"marca", label:"Marcă / Model", sortable:true },
+    { key:"serial", label:"Serial", sortable:true },
+    { key:"user", label:"Utilizator", sortable:true },
+    { key:"companyId", label:"Firmă", sortable:true },
+    { key:"garantie", label:"Garanție", sortable:true },
+    { key:"status", label:"Status", sortable:true },
+    { key:"__act", label:"", sortable:false }
+  ];
+
+  function renderHead() {
+    els.head.innerHTML = COLS.map(function (c) {
+      if (!c.sortable) return '<th class="static"></th>';
+      var sorted = sort.key === c.key;
+      var arr = sorted ? (sort.dir === 1 ? "▲" : "▼") : "";
+      return '<th class="' + (sorted ? "sorted" : "") + '"><button data-k="' + c.key + '">' +
+        esc(c.label) + ' <span class="arr">' + arr + '</span></button></th>';
+    }).join("");
+    Array.prototype.forEach.call(els.head.querySelectorAll("button"), function (b) {
+      b.addEventListener("click", function () {
+        var k = b.getAttribute("data-k");
+        if (sort.key === k) sort.dir *= -1; else { sort.key = k; sort.dir = 1; }
+        render();
+      });
+    });
+  }
+
+  function renderKpis() {
+    var total = data.length;
+    var activ = data.filter(function (i) { return i.status === "Activ"; }).length;
+    var service = data.filter(function (i) { return i.status === "În service"; }).length;
+    var soon = 0, exp = 0;
+    data.forEach(function (i) {
+      if (i.status === "Casat") return;
+      var d = daysUntil(i.garantie);
+      if (d === null) return;
+      if (d < 0) exp++; else if (d <= 90) soon++;
+    });
+    var tiles = [
+      { k:"var(--accent)", lab:"Total echipamente", val:total, sub:activ + " active", f:null },
+      { k:"var(--warn)", lab:"Garanție ≤ 90 zile", val:soon, sub:"necesită atenție", f:"soon" },
+      { k:"var(--crit)", lab:"Garanție expirată", val:exp, sub:"exclus casate", f:"exp" },
+      { k:"var(--warn)", lab:"În service", val:service, sub:"momentan", f:"stat:În service" }
+    ];
+    els.kpis.innerHTML = tiles.map(function (t) {
+      return '<div class="kpi' + (t.f ? " clickable" : "") + '" style="--k:' + t.k + '" ' +
+        (t.f ? 'data-f="' + t.f + '" role="button" tabindex="0"' : "") + '>' +
+        '<div class="lab">' + esc(t.lab) + '</div>' +
+        '<div class="val tnum">' + t.val + '</div>' +
+        '<div class="sub">' + esc(t.sub) + '</div></div>';
+    }).join("");
+    Array.prototype.forEach.call(els.kpis.querySelectorAll("[data-f]"), function (el) {
+      function act() {
+        var f = el.getAttribute("data-f");
+        clearFilters();
+        if (f === "soon") els.fWar.value = "soon";
+        else if (f === "exp") els.fWar.value = "exp";
+        else if (f.indexOf("stat:") === 0) els.fStatus.value = f.slice(5);
+        render();
+      }
+      el.addEventListener("click", act);
+      el.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); act(); } });
+    });
+  }
+
+  function render() {
+    renderKpis();
+    renderHead();
+    var list = filtered();
+    if (!data.length) {
+      els.rows.innerHTML = "";
+      els.emptyMain.textContent = "Niciun echipament încă.";
+      els.empty.hidden = false;
+    } else if (!list.length) {
+      els.rows.innerHTML = "";
+      els.emptyMain.textContent = "Niciun rezultat pentru filtrele curente.";
+      els.empty.hidden = false;
+    } else {
+      els.empty.hidden = true;
+      els.rows.innerHTML = list.map(rowHtml).join("");
+      Array.prototype.forEach.call(els.rows.querySelectorAll("[data-edit]"), function (b) {
+        b.addEventListener("click", function () { openModal(b.getAttribute("data-edit")); });
+      });
+      Array.prototype.forEach.call(els.rows.querySelectorAll("[data-del]"), function (b) {
+        b.addEventListener("click", function () { removeItem(b.getAttribute("data-del")); });
+      });
+    }
+    els.count.textContent = list.length + " din " + data.length + " echipamente";
+    refreshFilterOptions();
+  }
+
+  function rowHtml(it) {
+    var w = warInfo(it.garantie);
+    var stc = STATUS_CLASS[it.status] || "st-rezerva";
+    var col = TYPE_COLORS[it.tip] || "var(--accent)";
+    return '<tr>' +
+      '<td class="name-cell">' + esc(it.nume) + '</td>' +
+      '<td><span class="type-tag"><span class="type-dot" style="background:' + col + '"></span>' + esc(it.tip) + '</span></td>' +
+      '<td>' + (it.marca ? esc(it.marca) : '<span class="muted">—</span>') + '</td>' +
+      '<td class="mono" style="font-size:12.5px">' + (it.serial ? esc(it.serial) : '<span class="muted">—</span>') + '</td>' +
+      '<td>' + (it.user ? esc(it.user) : '<span class="muted">—</span>') + '</td>' +
+      '<td>' + (companyName(it.companyId) ? esc(companyName(it.companyId)) : '<span class="muted">nealocat</span>') + '</td>' +
+      '<td><span class="war"><span class="chip ' + w.cls + '">' + esc(w.txt) + '</span>' +
+        (w.date ? '<span class="date mono">' + esc(w.date) + '</span>' : '') + '</span></td>' +
+      '<td><span class="pill ' + stc + '"><span class="dot"></span>' + esc(it.status) + '</span></td>' +
+      '<td><div class="row-actions">' +
+        '<button class="icon-btn" data-edit="' + it.id + '" title="Editează" aria-label="Editează"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></button>' +
+        '<button class="icon-btn del" data-del="' + it.id + '" title="Șterge" aria-label="Șterge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg></button>' +
+      '</div></td>' +
+    '</tr>';
+  }
+
+  // ---------- filter option population ----------
+  function fillSelect(sel, values, keepFirst) {
+    var cur = sel.value;
+    var first = sel.querySelector("option");
+    sel.innerHTML = "";
+    if (keepFirst && first) sel.appendChild(first);
+    values.forEach(function (v) {
+      var o = document.createElement("option");
+      o.value = v; o.textContent = v; sel.appendChild(o);
+    });
+    if (values.indexOf(cur) !== -1) sel.value = cur;
+  }
+  function refreshFilterOptions() {
+    var cur = els.fClient.value;
+    var sorted = companies.slice().sort(function (a, b) { return a.nume.toLowerCase() < b.nume.toLowerCase() ? -1 : 1; });
+    els.fClient.innerHTML = '<option value="">Toate firmele</option>' +
+      sorted.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.nume) + '</option>'; }).join("");
+    if (companies.some(function (c) { return c.id === cur; })) els.fClient.value = cur;
+  }
+  function fillCompanySelect(sel, selectedId) {
+    var sorted = companies.slice().sort(function (a, b) { return a.nume.toLowerCase() < b.nume.toLowerCase() ? -1 : 1; });
+    sel.innerHTML = '<option value="">— nealocat —</option>' +
+      sorted.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.nume) + '</option>'; }).join("");
+    sel.value = selectedId || "";
+  }
+
+  function initStaticSelects() {
+    fillSelect(els.fType, TYPES, true);
+    fillSelect(els.fStatus, STATUSES, true);
+    document.getElementById("f_tip").innerHTML = TYPES.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join("");
+    document.getElementById("f_status").innerHTML = STATUSES.map(function (s) { return '<option>' + esc(s) + '</option>'; }).join("");
+  }
+
+  function clearFilters() {
+    els.q.value = ""; els.fType.value = ""; els.fStatus.value = ""; els.fClient.value = ""; els.fWar.value = "";
+  }
+
+  // ---------- modal ----------
+  function openModal(id, prefill) {
+    editingId = id || null;
+    els.formErr.textContent = "";
+    var f = els.form;
+    if (id) {
+      var it = data.find(function (x) { return x.id === id; });
+      if (!it) return;
+      els.mTitle.textContent = "Editează echipament";
+      f.f_nume.value = it.nume || ""; f.f_tip.value = it.tip || TYPES[0];
+      f.f_status.value = it.status || STATUSES[0]; f.f_marca.value = it.marca || "";
+      f.f_serial.value = it.serial || ""; f.f_user.value = it.user || "";
+      fillCompanySelect(f.f_company, it.companyId || "");
+      f.f_achizitie.value = it.achizitie || ""; f.f_garantie.value = it.garantie || "";
+      f.f_procesor.value = it.procesor || ""; f.f_memorie.value = it.memorie || "";
+      f.f_stocare.value = it.stocare || ""; f.f_os.value = it.os || "";
+      f.f_key.value = it.cheieWindows || ""; f.f_note.value = it.note || "";
+    } else {
+      els.mTitle.textContent = prefill ? "Adaugă echipament (din Belarc)" : "Adaugă echipament";
+      f.reset();
+      f.f_tip.value = (prefill && prefill.tip) || TYPES[0];
+      f.f_status.value = "Activ";
+      fillCompanySelect(f.f_company, "");
+      if (prefill) {
+        f.f_nume.value = prefill.nume || ""; f.f_marca.value = prefill.marca || "";
+        f.f_serial.value = prefill.serial || ""; f.f_procesor.value = prefill.procesor || "";
+        f.f_memorie.value = prefill.memorie || ""; f.f_stocare.value = prefill.stocare || "";
+        f.f_os.value = prefill.os || ""; f.f_key.value = prefill.cheieWindows || "";
+        f.f_note.value = prefill.note || "";
+      }
+    }
+    els.overlay.classList.add("open");
+    setTimeout(function () { f.f_nume.focus(); }, 30);
+  }
+  function closeModal() { els.overlay.classList.remove("open"); editingId = null; }
+
+  els.form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = els.form;
+    var nume = f.f_nume.value.trim();
+    if (!nume) { els.formErr.textContent = "Numele este obligatoriu."; f.f_nume.focus(); return; }
+    var obj = {
+      nume: nume, tip: f.f_tip.value, status: f.f_status.value,
+      marca: f.f_marca.value.trim(), serial: f.f_serial.value.trim(),
+      user: f.f_user.value.trim(), companyId: f.f_company.value,
+      achizitie: f.f_achizitie.value, garantie: f.f_garantie.value,
+      procesor: f.f_procesor.value.trim(), memorie: f.f_memorie.value.trim(),
+      stocare: f.f_stocare.value.trim(), os: f.f_os.value.trim(),
+      cheieWindows: f.f_key.value.trim(), note: f.f_note.value.trim()
+    };
+    if (editingId) {
+      var it = data.find(function (x) { return x.id === editingId; });
+      if (it) Object.keys(obj).forEach(function (k) { it[k] = obj[k]; });
+      toast("Echipament actualizat");
+    } else {
+      obj.id = uid(); data.unshift(obj);
+      toast("Echipament adăugat");
+    }
+    save(); render(); closeModal();
+  });
+
+  function removeItem(id) {
+    var it = data.find(function (x) { return x.id === id; });
+    if (!it) return;
+    if (!confirm('Ștergi „' + it.nume + '" din inventar?')) return;
+    data = data.filter(function (x) { return x.id !== id; });
+    save(); render(); toast("Echipament șters");
+  }
+
+  // ---------- export / import ----------
+  function blobDownload(name, text, mime) {
+    var blob = new Blob([text], { type: mime });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+  // Uses the hosted viewer's download bridge when present (artifact on claude.ai);
+  // falls back to a direct blob link when the file is opened locally.
+  function download(name, text, mime, okMsg) {
+    var save = window.claude && window.claude.use ? window.claude.use("downloads") : null;
+    if (save && typeof save.then === "function") {
+      save.then(function (dl) {
+        if (!dl) { blobDownload(name, text, mime); toast(okMsg); return; }
+        dl.save({ filename: name, data: text }).then(function () {
+          toast(okMsg);
+        }).catch(function (err) {
+          if (err && err.code === "declined") return;
+          blobDownload(name, text, mime); toast(okMsg);
+        });
+      }).catch(function () { blobDownload(name, text, mime); toast(okMsg); });
+    } else {
+      blobDownload(name, text, mime); toast(okMsg);
+    }
+  }
+  function stamp() {
+    var d = new Date(), p = function (n) { return String(n).padStart(2, "0"); };
+    return d.getFullYear() + p(d.getMonth()+1) + p(d.getDate());
+  }
+  function exportCsv() {
+    if (!data.length) { toast("Nimic de exportat"); return; }
+    var head = ["Nume","Tip","Marca/Model","Serial","Utilizator","Firma","Data achizitie","Expirare garantie","Status","Procesor","Memorie","Stocare","Sistem operare","Cheie Windows","Note"];
+    function cell(v) { v = v == null ? "" : String(v); return '"' + v.replace(/"/g, '""') + '"'; }
+    var lines = [head.map(cell).join(",")];
+    data.forEach(function (it) {
+      lines.push([it.nume, it.tip, it.marca, it.serial, it.user, companyName(it.companyId),
+        it.achizitie, it.garantie, it.status, it.procesor, it.memorie, it.stocare, it.os, it.cheieWindows, it.note]
+        .map(cell).join(","));
+    });
+    download("inventar-echipamente-" + stamp() + ".csv", "﻿" + lines.join("\r\n"), "text/csv;charset=utf-8", "Export CSV descărcat");
+  }
+  function exportJson() {
+    if (!data.length && !companies.length) { toast("Nimic de exportat"); return; }
+    var payload = { format: "ncs-inventar", version: 2, exportat: new Date().toISOString(), echipamente: data, firme: companies };
+    download("inventar-echipamente-" + stamp() + ".json", JSON.stringify(payload, null, 2), "application/json", "Backup JSON descărcat");
+  }
+  function importJson(file) {
+    var r = new FileReader();
+    r.onload = function () {
+      try {
+        var parsed = JSON.parse(r.result);
+        var arr, firme = [];
+        if (Array.isArray(parsed)) { arr = parsed; }
+        else if (parsed && Array.isArray(parsed.echipamente)) { arr = parsed.echipamente; firme = Array.isArray(parsed.firme) ? parsed.firme : []; }
+        else throw new Error("format");
+
+        var cleanFirme = firme.map(function (c) {
+          return { id: c.id || cid(), nume: String(c.nume || "").trim() || "(fără nume)", contact: c.contact || "", cui: c.cui || "", note: c.note || "" };
+        });
+        var clean = arr.map(function (o) {
+          var it = {
+            id: o.id || uid(), nume: String(o.nume || "").trim() || "(fără nume)",
+            tip: TYPES.indexOf(o.tip) !== -1 ? o.tip : "Altele",
+            status: STATUSES.indexOf(o.status) !== -1 ? o.status : "Activ",
+            marca: o.marca || "", serial: o.serial || "", user: o.user || "",
+            companyId: o.companyId || "", achizitie: o.achizitie || "", garantie: o.garantie || "",
+            procesor: o.procesor || "", memorie: o.memorie || "", stocare: o.stocare || "",
+            os: o.os || "", cheieWindows: o.cheieWindows || "", note: o.note || ""
+          };
+          // legacy: free-text client -> match/create company
+          if (!it.companyId && o.client) {
+            var name = String(o.client).trim();
+            var found = cleanFirme.find(function (c) { return c.nume.toLowerCase() === name.toLowerCase(); });
+            if (!found) { found = { id: cid(), nume: name, contact: "", cui: "", note: "" }; cleanFirme.push(found); }
+            it.companyId = found.id;
+          }
+          return it;
+        });
+
+        var replace = true;
+        if (data.length || companies.length) {
+          replace = confirm("Înlocuiești inventarul curent (" + data.length + " echip., " + companies.length + " firme) cu cel importat (" + clean.length + " echip., " + cleanFirme.length + " firme)?\n\nOK = înlocuire  •  Anulează = adăugare la cel existent");
+        }
+        if (replace) { data = clean; companies = cleanFirme; }
+        else {
+          companies = companies.concat(cleanFirme);
+          data = data.concat(clean);
+        }
+        save(); saveCompanies(); render(); refreshCompanyList();
+        toast("Import reușit: " + clean.length + " echipamente, " + cleanFirme.length + " firme");
+      } catch (e) {
+        alert("Fișier JSON invalid. Folosește un backup exportat din această aplicație.");
+      }
+    };
+    r.readAsText(file);
+  }
+
+  // ---------- theme ----------
+  function applyThemeLabel() {
+    var mode = document.documentElement.getAttribute("data-theme");
+    var dark = mode === "dark" || (!mode && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.getElementById("themeLbl").textContent = dark ? "Temă luminoasă" : "Temă întunecată";
+  }
+  function toggleTheme() {
+    var cur = document.documentElement.getAttribute("data-theme");
+    var dark = cur === "dark" || (!cur && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    var next = dark ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+    applyThemeLabel();
+  }
+  (function initTheme() {
+    try {
+      var t = localStorage.getItem(THEME_KEY);
+      if (t) document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+
+  // ---------- menu ----------
+  var menu = document.getElementById("moreMenu");
+  document.getElementById("moreBtn").addEventListener("click", function (e) {
+    e.stopPropagation(); menu.classList.toggle("open");
+  });
+  document.addEventListener("click", function () { menu.classList.remove("open"); });
+  menu.addEventListener("click", function (e) { e.stopPropagation(); });
+
+  // ---------- wire up ----------
+  document.getElementById("addBtn").addEventListener("click", function () { openModal(null); });
+  document.getElementById("closeModal").addEventListener("click", closeModal);
+  document.getElementById("cancelBtn").addEventListener("click", closeModal);
+  els.overlay.addEventListener("click", function (e) { if (e.target === els.overlay) closeModal(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") { closeModal(); menu.classList.remove("open"); } });
+
+  ["input","change"].forEach(function (ev) {
+    els.q.addEventListener(ev, render);
+  });
+  [els.fType, els.fStatus, els.fClient, els.fWar].forEach(function (s) { s.addEventListener("change", render); });
+
+  document.getElementById("expCsv").addEventListener("click", function () { menu.classList.remove("open"); exportCsv(); });
+  document.getElementById("expJson").addEventListener("click", function () { menu.classList.remove("open"); exportJson(); });
+  document.getElementById("impJson").addEventListener("click", function () { menu.classList.remove("open"); document.getElementById("fileInput").click(); });
+  document.getElementById("fileInput").addEventListener("change", function (e) {
+    if (e.target.files && e.target.files[0]) importJson(e.target.files[0]);
+    e.target.value = "";
+  });
+  document.getElementById("themeBtn").addEventListener("click", function () { menu.classList.remove("open"); toggleTheme(); });
+  document.getElementById("clearBtn").addEventListener("click", function () {
+    menu.classList.remove("open");
+    if (!data.length) { toast("Inventarul e deja gol"); return; }
+    if (confirm("Ștergi definitiv toate cele " + data.length + " echipamente?\nFă întâi un export JSON dacă vrei backup.")) {
+      data = []; save(); render(); toast("Inventar golit");
+    }
+  });
+
+  // ---------- companies management ----------
+  var compOverlay = document.getElementById("compOverlay");
+  var compForm = document.getElementById("compForm");
+  var compList = document.getElementById("compList");
+
+  function openComp() {
+    resetCompForm();
+    refreshCompanyList();
+    compOverlay.classList.add("open");
+    setTimeout(function () { document.getElementById("c_nume").focus(); }, 30);
+  }
+  function closeComp() { compOverlay.classList.remove("open"); resetCompForm(); }
+  function resetCompForm() {
+    compForm.reset();
+    document.getElementById("c_id").value = "";
+    editingCompId = null;
+    document.getElementById("compSaveBtn").textContent = "Adaugă firmă";
+    document.getElementById("compCancelEdit").hidden = true;
+  }
+  function refreshCompanyList() {
+    if (!companies.length) {
+      compList.innerHTML = '<div style="text-align:center;color:var(--ink-3);padding:26px 10px;font-size:13px;">Nicio firmă încă. Adaugă prima firmă în formularul de sus.</div>';
+      return;
+    }
+    var sorted = companies.slice().sort(function (a, b) { return a.nume.toLowerCase() < b.nume.toLowerCase() ? -1 : 1; });
+    compList.innerHTML = sorted.map(function (c) {
+      var n = equipCountFor(c.id);
+      var meta = [c.contact, c.cui].filter(Boolean).map(esc).join(" · ");
+      return '<div class="comp-row">' +
+        '<div class="ci"><div class="cn">' + esc(c.nume) + '</div>' +
+        (meta ? '<div class="cm">' + meta + '</div>' : '') + '</div>' +
+        '<span class="badge">' + n + (n === 1 ? ' echip.' : ' echip.') + '</span>' +
+        '<button class="icon-btn" data-cedit="' + c.id + '" title="Editează" aria-label="Editează"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></button>' +
+        '<button class="icon-btn del" data-cdel="' + c.id + '" title="Șterge" aria-label="Șterge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>' +
+        '</div>';
+    }).join("");
+    Array.prototype.forEach.call(compList.querySelectorAll("[data-cedit]"), function (b) {
+      b.addEventListener("click", function () { editCompany(b.getAttribute("data-cedit")); });
+    });
+    Array.prototype.forEach.call(compList.querySelectorAll("[data-cdel]"), function (b) {
+      b.addEventListener("click", function () { deleteCompany(b.getAttribute("data-cdel")); });
+    });
+  }
+  function editCompany(id) {
+    var c = companies.find(function (x) { return x.id === id; });
+    if (!c) return;
+    editingCompId = id;
+    document.getElementById("c_id").value = id;
+    document.getElementById("c_nume").value = c.nume;
+    document.getElementById("c_contact").value = c.contact || "";
+    document.getElementById("c_cui").value = c.cui || "";
+    document.getElementById("compSaveBtn").textContent = "Salvează";
+    document.getElementById("compCancelEdit").hidden = false;
+    document.getElementById("c_nume").focus();
+  }
+  function deleteCompany(id) {
+    var c = companies.find(function (x) { return x.id === id; });
+    if (!c) return;
+    var n = equipCountFor(id);
+    var msg = n > 0
+      ? 'Ștergi firma „' + c.nume + '"?\nCele ' + n + ' echipamente alocate devin „nealocate".'
+      : 'Ștergi firma „' + c.nume + '"?';
+    if (!confirm(msg)) return;
+    data.forEach(function (it) { if (it.companyId === id) it.companyId = ""; });
+    companies = companies.filter(function (x) { return x.id !== id; });
+    save(); saveCompanies();
+    resetCompForm(); refreshCompanyList(); render();
+    toast("Firmă ștearsă");
+  }
+  compForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var nume = document.getElementById("c_nume").value.trim();
+    if (!nume) return;
+    var contact = document.getElementById("c_contact").value.trim();
+    var cui = document.getElementById("c_cui").value.trim();
+    if (editingCompId) {
+      var c = companies.find(function (x) { return x.id === editingCompId; });
+      if (c) { c.nume = nume; c.contact = contact; c.cui = cui; }
+      toast("Firmă actualizată");
+    } else {
+      var dup = findCompanyByName(nume);
+      if (dup) { toast("Firma există deja"); return; }
+      companies.push({ id: cid(), nume: nume, contact: contact, cui: cui, note: "" });
+      toast("Firmă adăugată");
+    }
+    saveCompanies();
+    resetCompForm(); refreshCompanyList(); render();
+  });
+
+  // quick-add company from the equipment form
+  function quickAddCompany() {
+    var name = prompt("Nume firmă nouă:");
+    if (name === null) return;
+    name = name.trim();
+    if (!name) return;
+    var existing = findCompanyByName(name);
+    var c = existing || { id: cid(), nume: name, contact: "", cui: "", note: "" };
+    if (!existing) { companies.push(c); saveCompanies(); }
+    fillCompanySelect(els.form.f_company, c.id);
+    refreshFilterOptions();
+    toast(existing ? "Firma există — selectată" : "Firmă adăugată");
+  }
+
+  // ---------- Belarc import ----------
+  var belOverlay = document.getElementById("belOverlay");
+  function openBel() {
+    belParsed = null;
+    document.getElementById("belText").value = "";
+    document.getElementById("belErr").textContent = "";
+    document.getElementById("belPreview").style.display = "none";
+    document.getElementById("belUse").hidden = true;
+    belOverlay.classList.add("open");
+  }
+  function closeBel() { belOverlay.classList.remove("open"); }
+
+  function clean1(s) { return (s || "").replace(/\s+/g, " ").trim(); }
+
+  function parseBelarc(text) {
+    var t = String(text || "").replace(/\r/g, "");
+    var out = { nume:"", tip:"", marca:"", serial:"", procesor:"", memorie:"", stocare:"", os:"", cheieWindows:"" };
+    var m;
+
+    // Computer name
+    m = t.match(/([A-Za-z0-9][A-Za-z0-9\-_.]{1,40})\s*\(in\s+WORKGROUP\)/i);
+    if (m) out.nume = m[1];
+    if (!out.nume) { m = t.match(/Computer Name[:\s.]*\n?\s*([A-Za-z0-9\-_.]{2,40})/i); if (m) out.nume = m[1]; }
+
+    // System model -> marca
+    m = t.match(/System Model[:\s.]*\n?\s*([^\n]{2,80})/i);
+    if (m) out.marca = clean1(m[1]).replace(/\s*(Try BelManage|System Serial.*|Main Circuit.*)$/i, "");
+
+    // Serial
+    m = t.match(/System Serial Number[:\s.]*\n?\s*([A-Za-z0-9][A-Za-z0-9\-\/]{2,40})/i);
+    if (m) out.serial = clean1(m[1]);
+
+    // Processor
+    m = t.match(/([\d.,]+\s*(?:gigahertz|GHz)[^\n]*?(?:Intel|AMD|Apple|Qualcomm)[^\n]*)/i);
+    if (!m) m = t.match(/Processor[:\s.]*\n?\s*([^\n]{4,90})/i);
+    if (m) {
+      out.procesor = clean1(m[1]).split(/\s+\d+\s+(?:kilobyte|megabyte)/i)[0]
+        .replace(/\bgigahertz\b/i, "GHz").replace(/\s*,\s*/g, " ").trim();
+    }
+
+    // Memory
+    m = t.match(/([\d.,]+)\s*(Gigabytes?|Megabytes?)\s*Usable Installed Memory/i);
+    if (m) { out.memorie = clean1(m[1]).replace(",", ".") + " " + (/mega/i.test(m[2]) ? "MB" : "GB"); }
+
+    // Storage
+    m = t.match(/([\d.,]+)\s*Gigabytes?\s*Usable (?:Hard Drive|Local Storage)\s*Capacity/i);
+    if (m) { out.stocare = clean1(m[1]).replace(",", ".") + " GB"; }
+
+    // OS
+    m = t.match(/(Windows\s+(?:10|11|Server)[^\n]*?\(x64\)[^\n]*)/i);
+    if (!m) m = t.match(/Operating System[:\s.]*\n?\s*([^\n]*Windows[^\n]{0,60})/i);
+    if (m) out.os = clean1(m[1]).replace(/\s*Version.*/i, "").replace(/\s*\(build.*/i, "");
+
+    // Windows key
+    m = t.match(/\(Key:\s*([A-Z0-9]{5}(?:[-\s]+[A-Z0-9]{5}){4})/i);
+    if (m) out.cheieWindows = m[1].replace(/\s+/g, "-").replace(/-+/g, "-").toUpperCase();
+
+    // Guess type from model
+    var mk = (out.marca + " " + out.nume).toLowerCase();
+    if (/server|poweredge|proliant/.test(mk)) out.tip = "Server";
+    else if (/thinkpad|elitebook|probook|latitude|ideapad|vostro|inspiron|notebook|zbook|macbook|laptop|swift|vivobook|dream machines/.test(mk)) out.tip = "Laptop";
+    else out.tip = "Desktop";
+
+    return out;
+  }
+
+  function showBelPreview(p) {
+    var rows = [
+      ["Nume", p.nume], ["Tip", p.tip], ["Marcă / Model", p.marca], ["Serial", p.serial],
+      ["Procesor", p.procesor], ["Memorie", p.memorie], ["Stocare", p.stocare],
+      ["Sistem operare", p.os], ["Cheie Windows", p.cheieWindows]
+    ];
+    document.getElementById("belFields").innerHTML = rows.map(function (r) {
+      var val = r[1] ? esc(r[1]) : '<span style="color:var(--ink-3)">— negăsit —</span>';
+      return '<div><span style="color:var(--ink-3)">' + esc(r[0]) + ':</span> <strong>' + val + '</strong></div>';
+    }).join("");
+    document.getElementById("belPreview").style.display = "block";
+  }
+
+  function doBelParse() {
+    var txt = document.getElementById("belText").value;
+    document.getElementById("belErr").textContent = "";
+    if (!clean1(txt)) { document.getElementById("belErr").textContent = "Lipește textul raportului sau încarcă un fișier."; return; }
+    var p = parseBelarc(txt);
+    if (!p.nume && !p.marca && !p.serial && !p.procesor) {
+      document.getElementById("belErr").textContent = "Nu am putut detecta câmpuri Belarc. Verifică textul.";
+      return;
+    }
+    belParsed = p;
+    showBelPreview(p);
+    document.getElementById("belUse").hidden = false;
+  }
+
+  function belLoadFile(file) {
+    var r = new FileReader();
+    r.onload = function () {
+      var raw = String(r.result || "");
+      var txt = raw;
+      if (/<html|<table|<body|<!doctype/i.test(raw)) {
+        try {
+          var doc = new DOMParser().parseFromString(raw, "text/html");
+          txt = doc.body ? (doc.body.innerText || doc.body.textContent || "") : raw;
+        } catch (e) { txt = raw; }
+      }
+      document.getElementById("belText").value = txt;
+      doBelParse();
+    };
+    r.readAsText(file);
+  }
+
+  // ---------- wiring: companies + belarc ----------
+  document.getElementById("firmeBtn").addEventListener("click", openComp);
+  document.getElementById("closeComp").addEventListener("click", closeComp);
+  document.getElementById("compCancelEdit").addEventListener("click", resetCompForm);
+  compOverlay.addEventListener("click", function (e) { if (e.target === compOverlay) closeComp(); });
+  document.getElementById("newCompanyBtn").addEventListener("click", quickAddCompany);
+
+  function openBelWrap() { menu.classList.remove("open"); openBel(); }
+  document.getElementById("belarcBtn").addEventListener("click", openBel);
+  document.getElementById("belarcMenu").addEventListener("click", openBelWrap);
+  document.getElementById("closeBel").addEventListener("click", closeBel);
+  document.getElementById("belCancel").addEventListener("click", closeBel);
+  belOverlay.addEventListener("click", function (e) { if (e.target === belOverlay) closeBel(); });
+  document.getElementById("belParse").addEventListener("click", doBelParse);
+  document.getElementById("belUse").addEventListener("click", function () {
+    if (!belParsed) return;
+    closeBel();
+    openModal(null, belParsed);
+  });
+  document.getElementById("belFileBtn").addEventListener("click", function () { document.getElementById("belFile").click(); });
+  document.getElementById("belFile").addEventListener("change", function (e) {
+    if (e.target.files && e.target.files[0]) belLoadFile(e.target.files[0]);
+    e.target.value = "";
+  });
+
+  // extend Escape handling to new overlays
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { closeComp(); closeBel(); }
+  });
+
+  // ---------- go ----------
+  initStaticSelects();
+  loadCompanies();
+  load();
+  migrate();
+  render();
+  applyThemeLabel();
+})();
+</script>
