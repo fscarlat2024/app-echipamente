@@ -6,7 +6,8 @@
   "workers_dev": true,
   "assets": {
     "directory": "./public"
-  }
-  // Domeniu custom: se adauga dupa ce se decide subdomeniul liber (vezi README).
-  // Exemplu: "routes": [{ "pattern": "inventar.netcomm.ro", "custom_domain": true }]
+  },
+  "routes": [
+    { "pattern": "app.netcomm.ro", "custom_domain": true }
+  ]
 }
