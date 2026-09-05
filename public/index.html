@@ -1598,7 +1598,7 @@
   }
   function updateRepFields() {
     var t = document.getElementById("rep_type").value;
-    document.getElementById("rep_firm_wrap").hidden = (t === "firma" || t === "sumar");
+    document.getElementById("rep_firm_wrap").hidden = (t === "sumar");
     document.getElementById("rep_days_wrap").hidden = (t !== "garantii");
   }
   function openRep() { fillRepFirm(); updateRepFields(); repOverlay.classList.add("open"); }
@@ -1659,18 +1659,21 @@
         }).join("") + "</table>";
       if (!rows.length) html += "<p style='color:#5a6a80'>Nicio garanție în acest interval.</p>";
     } else if (type === "firma") {
-      html += repHeader("Inventar grupat pe firmă", "Toate firmele");
+      html += repHeader("Inventar grupat pe firmă", firmId ? ("Firma: " + companyName(firmId)) : "Toate firmele");
       var groups = companies.slice().sort(function (a, b) { return a.nume.toLowerCase() < b.nume.toLowerCase() ? -1 : 1; });
+      if (firmId) groups = groups.filter(function (c) { return c.id === firmId; });
       groups.forEach(function (c) {
         var list = data.filter(function (it) { return it.companyId === c.id; }).sort(byName);
         if (!list.length) return;
         html += "<div class='rep-sub'>" + esc(c.nume) + " (" + list.length + ")</div>";
         html += "<table class='rep'>" + EQ_HEAD + eqRowsHtml(list) + "</table>";
       });
-      var unassigned = data.filter(function (it) { return !it.companyId || !companyName(it.companyId); }).sort(byName);
-      if (unassigned.length) {
-        html += "<div class='rep-sub'>Nealocate (" + unassigned.length + ")</div>";
-        html += "<table class='rep'>" + EQ_HEAD + eqRowsHtml(unassigned) + "</table>";
+      if (!firmId) {
+        var unassigned = data.filter(function (it) { return !it.companyId || !companyName(it.companyId); }).sort(byName);
+        if (unassigned.length) {
+          html += "<div class='rep-sub'>Nealocate (" + unassigned.length + ")</div>";
+          html += "<table class='rep'>" + EQ_HEAD + eqRowsHtml(unassigned) + "</table>";
+        }
       }
     } else if (type === "sumar") {
       html += repHeader("Sumar inventar", "Statistici generale");
@@ -1705,7 +1708,7 @@
     var type = document.getElementById("rep_type").value;
     var firmId = document.getElementById("rep_firm").value;
     var days = document.getElementById("rep_days").value;
-    if (type === "firma" || type === "sumar") firmId = "";
+    if (type === "sumar") firmId = "";
     document.getElementById("reportBody").innerHTML = buildReportBody(type, firmId, days);
     closeRep();
     document.getElementById("reportView").hidden = false;
@@ -1716,7 +1719,7 @@
     var type = document.getElementById("rep_type").value;
     var firmId = document.getElementById("rep_firm").value;
     var days = parseInt(document.getElementById("rep_days").value, 10) || 90;
-    if (type === "firma" || type === "sumar") firmId = "";
+    if (type === "sumar") firmId = "";
     function cell(v) { v = v == null ? "" : String(v); return '"' + v.replace(/"/g, '""') + '"'; }
     var head = ["Nume", "Tip", "Marca/Model", "Serial", "Utilizator", "Firma", "Data achizitie", "Expirare garantie", "Zile ramase", "Status"];
     var rows = data.slice();
