@@ -347,6 +347,45 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* ---- report view ---- */
+  #reportView { position: fixed; inset: 0; z-index: 80; background: var(--bg); overflow: auto; }
+  .rep-toolbar {
+    position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px;
+    padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border);
+  }
+  .rep-page {
+    max-width: 900px; margin: 22px auto; background: #ffffff; color: #14202e;
+    padding: 34px 38px; border-radius: 8px; box-shadow: var(--shadow);
+  }
+  .rep-head { display: flex; align-items: center; gap: 14px; border-bottom: 3px solid #2c5c97; padding-bottom: 16px; margin-bottom: 6px; }
+  .rep-logo { width: 46px; height: 46px; border-radius: 10px; background: linear-gradient(150deg,#2c5c97,#3e7cc0); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 16px; letter-spacing: .5px; flex: none; }
+  .rep-org h2 { margin: 0; font-size: 18px; color: #14202e; }
+  .rep-org p { margin: 1px 0 0; font-size: 12px; color: #5a6a80; }
+  .rep-title { font-size: 22px; font-weight: 700; color: #14202e; margin: 18px 0 2px; letter-spacing: -.3px; }
+  .rep-meta { font-size: 12px; color: #5a6a80; margin-bottom: 16px; }
+  .rep-kpis { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 20px; }
+  .rep-kpi { border: 1px solid #d6dce6; border-radius: 8px; padding: 10px 14px; min-width: 120px; }
+  .rep-kpi .l { font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: #6b7889; font-weight: 600; }
+  .rep-kpi .v { font-size: 22px; font-weight: 700; color: #14202e; }
+  table.rep { width: 100%; border-collapse: collapse; margin: 8px 0 18px; font-size: 12px; }
+  table.rep th { text-align: left; background: #eef2f7; color: #2c3a4e; font-weight: 600; padding: 7px 9px; border: 1px solid #d6dce6; text-transform: uppercase; font-size: 10.5px; letter-spacing: .3px; }
+  table.rep td { padding: 6px 9px; border: 1px solid #e3e8ef; color: #14202e; vertical-align: top; }
+  table.rep tr:nth-child(even) td { background: #f8fafc; }
+  .rep-sub { font-size: 15px; font-weight: 700; color: #2c5c97; margin: 22px 0 4px; }
+  .rep-w-crit { color: #c33636; font-weight: 600; }
+  .rep-w-warn { color: #b5730d; font-weight: 600; }
+  .rep-w-ok { color: #1f8a54; font-weight: 600; }
+  .rep-foot { margin-top: 24px; border-top: 1px solid #d6dce6; padding-top: 10px; font-size: 10.5px; color: #6b7889; display: flex; justify-content: space-between; }
+
+  @media print {
+    body > *:not(#reportView) { display: none !important; }
+    #reportView { position: static; overflow: visible; background: #fff; }
+    #reportView[hidden] { display: none !important; }
+    .no-print { display: none !important; }
+    .rep-page { box-shadow: none; margin: 0; max-width: none; border-radius: 0; padding: 0; }
+    @page { size: A4; margin: 14mm; }
+  }
+
   @media (max-width: 620px) {
     .grid2 { grid-template-columns: 1fr; }
     .brand p { display: none; }
@@ -370,6 +409,10 @@
     <button class="btn" id="firmeBtn" title="Gestionează firmele">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M15 9h.01M9 13h.01M15 13h.01M9 17h.01M15 17h.01"/></svg>
       Firme
+    </button>
+    <button class="btn" id="raportBtn" title="Generează rapoarte">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+      Rapoarte
     </button>
     <button class="btn btn-primary" id="addBtn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -609,6 +652,53 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- Config raport -->
+<div class="overlay" id="repOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="repTitle" style="max-width:540px;">
+    <div class="modal-head">
+      <h2 id="repTitle">Generează raport</h2>
+      <button class="icon-btn" id="closeRep" aria-label="Închide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="grid2">
+        <div class="field full">
+          <label for="rep_type">Tip raport</label>
+          <select id="rep_type">
+            <option value="complet">Inventar complet</option>
+            <option value="garantii">Garanții (expirate + care expiră)</option>
+            <option value="firma">Grupat pe firmă</option>
+            <option value="sumar">Sumar statistic</option>
+          </select>
+        </div>
+        <div class="field full" id="rep_firm_wrap">
+          <label for="rep_firm">Firmă (opțional)</label>
+          <select id="rep_firm"></select>
+        </div>
+        <div class="field full" id="rep_days_wrap" hidden>
+          <label for="rep_days">Prag „expiră curând" (zile)</label>
+          <input id="rep_days" type="number" value="90" min="1" max="3650">
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <div class="right">
+        <button type="button" class="btn" id="repCsv"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>Export CSV</button>
+        <button type="button" class="btn btn-primary" id="repGen"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>Generează (print / PDF)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Vizualizare raport (printabil) -->
+<div id="reportView" hidden>
+  <div class="rep-toolbar no-print">
+    <button class="btn" id="repBack"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Înapoi</button>
+    <span style="flex:1;"></span>
+    <button class="btn" id="repPrint"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>Printează / Salvează PDF</button>
+  </div>
+  <div class="rep-page" id="reportBody"></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1491,6 +1581,166 @@
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") { closeComp(); closeBel(); }
   });
+
+  // ---------- reports ----------
+  var repOverlay = document.getElementById("repOverlay");
+  var EQ_HEAD = "<tr><th>Nume</th><th>Tip</th><th>Marca/Model</th><th>Serial</th><th>Utilizator</th><th>Firma</th><th>Achizitie</th><th>Garantie</th><th>Status</th></tr>";
+
+  function fmtToday() {
+    var d = new Date(), p = function (n) { return String(n).padStart(2, "0"); };
+    return p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + d.getFullYear() + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+  }
+  function fillRepFirm() {
+    var sel = document.getElementById("rep_firm");
+    var sorted = companies.slice().sort(function (a, b) { return a.nume.toLowerCase() < b.nume.toLowerCase() ? -1 : 1; });
+    sel.innerHTML = '<option value="">Toate firmele</option>' +
+      sorted.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.nume) + '</option>'; }).join("");
+  }
+  function updateRepFields() {
+    var t = document.getElementById("rep_type").value;
+    document.getElementById("rep_firm_wrap").hidden = (t === "firma" || t === "sumar");
+    document.getElementById("rep_days_wrap").hidden = (t !== "garantii");
+  }
+  function openRep() { fillRepFirm(); updateRepFields(); repOverlay.classList.add("open"); }
+  function closeRep() { repOverlay.classList.remove("open"); }
+
+  function repHeader(title, subtitle) {
+    return "<div class='rep-head'><div class='rep-logo'>NCS</div><div class='rep-org'>" +
+      "<h2>Net Communications Systems</h2>" +
+      "<p>Str. Samuil Vulcan nr. 12, Bucuresti &middot; suport@netcomm.ro &middot; 0740 196 718</p></div></div>" +
+      "<div class='rep-title'>" + esc(title) + "</div>" +
+      "<div class='rep-meta'>" + esc(subtitle) + " &middot; Generat: " + fmtToday() + (state.email ? (" &middot; " + esc(state.email)) : "") + "</div>";
+  }
+  function repFooter() {
+    return "<div class='rep-foot'><span>Net Communications Systems &mdash; Inventar echipamente</span><span>app.netcomm.ro</span></div>";
+  }
+  function kpi(label, val) { return "<div class='rep-kpi'><div class='l'>" + esc(label) + "</div><div class='v'>" + val + "</div></div>"; }
+
+  function eqRowsHtml(list) {
+    return list.map(function (it) {
+      var w = warInfo(it.garantie);
+      var wcls = w.cls === "w-crit" ? "rep-w-crit" : w.cls === "w-warn" ? "rep-w-warn" : w.cls === "w-ok" ? "rep-w-ok" : "";
+      var wtxt = (w.d === null) ? "—" : (w.d < 0 ? ("Expirat " + w.date) : (w.txt + " (" + w.date + ")"));
+      return "<tr><td>" + esc(it.nume) + "</td><td>" + esc(it.tip) + "</td><td>" + esc(it.marca || "") +
+        "</td><td>" + esc(it.serial || "") + "</td><td>" + esc(it.user || "") + "</td><td>" + esc(companyName(it.companyId) || "—") +
+        "</td><td>" + esc(fmtDate(it.achizitie)) + "</td><td class='" + wcls + "'>" + esc(wtxt) + "</td><td>" + esc(it.status) + "</td></tr>";
+    }).join("");
+  }
+  function byName(a, b) { return (a.nume || "").toLowerCase() < (b.nume || "").toLowerCase() ? -1 : 1; }
+
+  function buildReportBody(type, firmId, days) {
+    var html = "";
+    if (type === "complet") {
+      var list = data.filter(function (it) { return !firmId || it.companyId === firmId; }).slice().sort(byName);
+      var active = list.filter(function (i) { return i.status === "Activ"; }).length;
+      var exp = 0, soon = 0;
+      list.forEach(function (i) { if (i.status === "Casat") return; var d = daysUntil(i.garantie); if (d === null) return; if (d < 0) exp++; else if (d <= 90) soon++; });
+      html += repHeader("Inventar echipamente", firmId ? ("Firma: " + companyName(firmId)) : "Toate firmele");
+      html += "<div class='rep-kpis'>" + kpi("Total", list.length) + kpi("Active", active) + kpi("Garantie <=90 zile", soon) + kpi("Garantie expirata", exp) + "</div>";
+      html += "<table class='rep'>" + EQ_HEAD + eqRowsHtml(list) + "</table>";
+    } else if (type === "garantii") {
+      var d0 = parseInt(days, 10) || 90;
+      var rows = data.filter(function (it) {
+        if (it.status === "Casat") return false;
+        if (!firmId || it.companyId === firmId) {} else return false;
+        var dd = daysUntil(it.garantie);
+        return dd !== null && dd <= d0;
+      }).sort(function (a, b) { var x = daysUntil(a.garantie), y = daysUntil(b.garantie); return x - y; });
+      var expc = rows.filter(function (i) { return daysUntil(i.garantie) < 0; }).length;
+      html += repHeader("Raport garantii", (firmId ? ("Firma: " + companyName(firmId) + " · ") : "") + "Expirate + care expira in <=" + d0 + " zile");
+      html += "<div class='rep-kpis'>" + kpi("Total in raport", rows.length) + kpi("Expirate", expc) + kpi("Expira <=" + d0 + "z", rows.length - expc) + "</div>";
+      html += "<table class='rep'><tr><th>Nume</th><th>Firma</th><th>Serial</th><th>Tip</th><th>Expirare</th><th>Stare</th></tr>" +
+        rows.map(function (it) {
+          var dd = daysUntil(it.garantie);
+          var cls = dd < 0 ? "rep-w-crit" : (dd <= 90 ? "rep-w-warn" : "rep-w-ok");
+          var st = dd < 0 ? ("Expirat de " + Math.abs(dd) + " zile") : (dd + " zile ramase");
+          return "<tr><td>" + esc(it.nume) + "</td><td>" + esc(companyName(it.companyId) || "—") + "</td><td>" + esc(it.serial || "") +
+            "</td><td>" + esc(it.tip) + "</td><td>" + esc(fmtDate(it.garantie)) + "</td><td class='" + cls + "'>" + esc(st) + "</td></tr>";
+        }).join("") + "</table>";
+      if (!rows.length) html += "<p style='color:#5a6a80'>Nicio garanție în acest interval.</p>";
+    } else if (type === "firma") {
+      html += repHeader("Inventar grupat pe firmă", "Toate firmele");
+      var groups = companies.slice().sort(function (a, b) { return a.nume.toLowerCase() < b.nume.toLowerCase() ? -1 : 1; });
+      groups.forEach(function (c) {
+        var list = data.filter(function (it) { return it.companyId === c.id; }).sort(byName);
+        if (!list.length) return;
+        html += "<div class='rep-sub'>" + esc(c.nume) + " (" + list.length + ")</div>";
+        html += "<table class='rep'>" + EQ_HEAD + eqRowsHtml(list) + "</table>";
+      });
+      var unassigned = data.filter(function (it) { return !it.companyId || !companyName(it.companyId); }).sort(byName);
+      if (unassigned.length) {
+        html += "<div class='rep-sub'>Nealocate (" + unassigned.length + ")</div>";
+        html += "<table class='rep'>" + EQ_HEAD + eqRowsHtml(unassigned) + "</table>";
+      }
+    } else if (type === "sumar") {
+      html += repHeader("Sumar inventar", "Statistici generale");
+      var total = data.length;
+      var byStatus = {}, byType = {};
+      data.forEach(function (i) { byStatus[i.status] = (byStatus[i.status] || 0) + 1; byType[i.tip] = (byType[i.tip] || 0) + 1; });
+      var exp = 0, s30 = 0, s90 = 0, valid = 0, none = 0;
+      data.forEach(function (i) { if (i.status === "Casat") return; var d = daysUntil(i.garantie); if (d === null) { none++; return; } if (d < 0) exp++; else if (d <= 30) s30++; else if (d <= 90) s90++; else valid++; });
+      html += "<div class='rep-kpis'>" + kpi("Total echipamente", total) + kpi("Firme", companies.length) + kpi("Active", byStatus["Activ"] || 0) + "</div>";
+      html += "<div class='rep-sub'>Pe tip</div><table class='rep'><tr><th>Tip</th><th>Număr</th></tr>" +
+        Object.keys(byType).sort().map(function (k) { return "<tr><td>" + esc(k) + "</td><td>" + byType[k] + "</td></tr>"; }).join("") + "</table>";
+      html += "<div class='rep-sub'>Pe status</div><table class='rep'><tr><th>Status</th><th>Număr</th></tr>" +
+        Object.keys(byStatus).sort().map(function (k) { return "<tr><td>" + esc(k) + "</td><td>" + byStatus[k] + "</td></tr>"; }).join("") + "</table>";
+      html += "<div class='rep-sub'>Pe firmă</div><table class='rep'><tr><th>Firmă</th><th>Echipamente</th><th>Garanție expirată</th></tr>" +
+        companies.slice().sort(function (a, b) { return a.nume.toLowerCase() < b.nume.toLowerCase() ? -1 : 1; }).map(function (c) {
+          var list = data.filter(function (it) { return it.companyId === c.id; });
+          var e = list.filter(function (it) { return it.status !== "Casat" && daysUntil(it.garantie) !== null && daysUntil(it.garantie) < 0; }).length;
+          return "<tr><td>" + esc(c.nume) + "</td><td>" + list.length + "</td><td" + (e ? " class='rep-w-crit'" : "") + ">" + e + "</td></tr>";
+        }).join("") + "</table>";
+      html += "<div class='rep-sub'>Garanții</div><table class='rep'><tr><th>Categorie</th><th>Număr</th></tr>" +
+        "<tr><td class='rep-w-crit'>Expirate</td><td>" + exp + "</td></tr>" +
+        "<tr><td class='rep-w-warn'>Expiră în <=30 zile</td><td>" + s30 + "</td></tr>" +
+        "<tr><td class='rep-w-warn'>Expiră în 31-90 zile</td><td>" + s90 + "</td></tr>" +
+        "<tr><td class='rep-w-ok'>Valide (>90 zile)</td><td>" + valid + "</td></tr>" +
+        "<tr><td>Fără dată garanție</td><td>" + none + "</td></tr></table>";
+    }
+    html += repFooter();
+    return html;
+  }
+
+  function generateReport() {
+    var type = document.getElementById("rep_type").value;
+    var firmId = document.getElementById("rep_firm").value;
+    var days = document.getElementById("rep_days").value;
+    if (type === "firma" || type === "sumar") firmId = "";
+    document.getElementById("reportBody").innerHTML = buildReportBody(type, firmId, days);
+    closeRep();
+    document.getElementById("reportView").hidden = false;
+    window.scrollTo(0, 0);
+  }
+
+  function reportCsv() {
+    var type = document.getElementById("rep_type").value;
+    var firmId = document.getElementById("rep_firm").value;
+    var days = parseInt(document.getElementById("rep_days").value, 10) || 90;
+    if (type === "firma" || type === "sumar") firmId = "";
+    function cell(v) { v = v == null ? "" : String(v); return '"' + v.replace(/"/g, '""') + '"'; }
+    var head = ["Nume", "Tip", "Marca/Model", "Serial", "Utilizator", "Firma", "Data achizitie", "Expirare garantie", "Zile ramase", "Status"];
+    var rows = data.slice();
+    if (type === "complet" || type === "firma") { if (firmId) rows = rows.filter(function (i) { return i.companyId === firmId; }); }
+    else if (type === "garantii") { rows = rows.filter(function (i) { return i.status !== "Casat" && (!firmId || i.companyId === firmId) && daysUntil(i.garantie) !== null && daysUntil(i.garantie) <= days; }); }
+    if (type === "firma") rows.sort(function (a, b) { var x = (companyName(a.companyId) || "~"), y = (companyName(b.companyId) || "~"); return x < y ? -1 : x > y ? 1 : byName(a, b); });
+    else rows.sort(byName);
+    var lines = [head.map(cell).join(",")];
+    rows.forEach(function (it) {
+      var dd = daysUntil(it.garantie);
+      lines.push([it.nume, it.tip, it.marca, it.serial, it.user, companyName(it.companyId), it.achizitie, it.garantie, (dd === null ? "" : dd), it.status].map(cell).join(","));
+    });
+    download("raport-" + type + "-" + stamp() + ".csv", "﻿" + lines.join("\r\n"), "text/csv;charset=utf-8", "Raport CSV descărcat");
+  }
+
+  document.getElementById("raportBtn").addEventListener("click", openRep);
+  document.getElementById("closeRep").addEventListener("click", closeRep);
+  repOverlay.addEventListener("click", function (e) { if (e.target === repOverlay) closeRep(); });
+  document.getElementById("rep_type").addEventListener("change", updateRepFields);
+  document.getElementById("repGen").addEventListener("click", generateReport);
+  document.getElementById("repCsv").addEventListener("click", reportCsv);
+  document.getElementById("repBack").addEventListener("click", function () { document.getElementById("reportView").hidden = true; });
+  document.getElementById("repPrint").addEventListener("click", function () { window.print(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") { closeRep(); if (!document.getElementById("reportView").hidden) document.getElementById("reportView").hidden = true; } });
 
   // ---------- role gating ----------
   function applyRole() {
