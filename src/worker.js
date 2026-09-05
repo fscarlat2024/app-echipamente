@@ -260,6 +260,23 @@ async function handleApi(request, env, url) {
     return json({ ok: true, firme: firme.length, echipamente: echip.length });
   }
 
+  // import in bloc (adauga, NU sterge) - pentru CSV/Excel
+  if (path === "/api/bulk" && method === "POST") {
+    var bp = await request.json();
+    var items = Array.isArray(bp.echipamente) ? bp.echipamente : [];
+    if (!items.length) return json({ ok: true, echipamente: 0 });
+    var made = items.map(function (e) {
+      if (!e.id) e.id = newId("eq_");
+      var v = apiToEqValues(e);
+      return env.DB.prepare("INSERT INTO equipment (" + EQ_COLS.join(",") + ",updated_at) VALUES (" + placeholders(EQ_COLS.length) + ",?)")
+        .bind(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15], Date.now());
+    });
+    for (var i = 0; i < made.length; i += 50) {
+      await env.DB.batch(made.slice(i, i + 50));
+    }
+    return json({ ok: true, echipamente: items.length });
+  }
+
   return json({ error: "not_found" }, 404);
 }
 
