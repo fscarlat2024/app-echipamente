@@ -367,9 +367,9 @@
   .rep-kpi { border: 1px solid #d6dce6; border-radius: 8px; padding: 10px 14px; min-width: 120px; }
   .rep-kpi .l { font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: #6b7889; font-weight: 600; }
   .rep-kpi .v { font-size: 22px; font-weight: 700; color: #14202e; }
-  table.rep { width: 100%; border-collapse: collapse; margin: 8px 0 18px; font-size: 12px; }
+  table.rep { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 8px 0 18px; font-size: 12px; }
   table.rep th { text-align: left; background: #eef2f7; color: #2c3a4e; font-weight: 600; padding: 7px 9px; border: 1px solid #d6dce6; text-transform: uppercase; font-size: 10.5px; letter-spacing: .3px; }
-  table.rep td { padding: 6px 9px; border: 1px solid #e3e8ef; color: #14202e; vertical-align: top; }
+  table.rep td { padding: 6px 9px; border: 1px solid #e3e8ef; color: #14202e; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; }
   table.rep tr:nth-child(even) td { background: #f8fafc; }
   .rep-sub { font-size: 15px; font-weight: 700; color: #2c5c97; margin: 22px 0 4px; }
   .rep-w-crit { color: #c33636; font-weight: 600; }
@@ -1384,6 +1384,11 @@
     // System model -> marca
     m = t.match(/System Model[:\s.]*\n?\s*([^\n]{2,80})/i);
     if (m) out.marca = clean1(m[1]).replace(/\s*(Try BelManage|System Serial.*|Main Circuit.*)$/i, "");
+    // OCR pe coloane poate ingloba textul OS in model -> taie pana la brand
+    if (/windows/i.test(out.marca)) {
+      var bc = out.marca.match(/(Dell|Lenovo|HP|Hewlett|Acer|ASUS|ASUSTeK|MSI|Fujitsu|Toshiba|Samsung|Apple|Gigabyte|Intel|Prestigio|Dream Machines)[^\n]*/i);
+      if (bc) out.marca = clean1(bc[0]);
+    }
 
     // Serial
     m = t.match(/System Serial Number[:\s.]*\n?\s*([A-Za-z0-9][A-Za-z0-9\-\/]{2,40})/i);
