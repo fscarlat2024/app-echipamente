@@ -623,7 +623,7 @@
       <p style="margin:0 0 12px; font-size:13px; color:var(--ink-2);">
         Încarcă fișierul <strong>PDF</strong> al raportului <strong>Belarc Advisor</strong> (sau <strong>.html</strong> / <strong>.txt</strong>),
         ori lipește tot textul mai jos. Extrag automat câmpurile și le poți verifica/corecta înainte de salvare.
-        <br><span style="font-size:11.5px; color:var(--ink-3);">Notă: PDF-urile scanate (imagine) nu conțin text — pentru ele copiază manual datele.</span>
+        <br><span style="font-size:11.5px; color:var(--ink-3);">PDF-urile scanate sau pozele sunt citite automat prin OCR (mai lent, ~10-30s). Verifică textul extras.</span>
       </p>
       <div class="field" style="margin-bottom:12px;">
         <label for="belCompany">Alocă direct firmei</label>
@@ -631,8 +631,8 @@
         <span class="hint">Echipamentul importat va fi alocat automat acestei firme (poți schimba în formular).</span>
       </div>
       <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
-        <button type="button" class="btn" id="belFileBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 3h14"/></svg>Încarcă fișier Belarc (PDF / HTML)</button>
-        <input type="file" id="belFile" accept=".pdf,.html,.htm,.txt,application/pdf,text/html,text/plain" hidden>
+        <button type="button" class="btn" id="belFileBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 3h14"/></svg>Încarcă fișier (PDF / HTML / imagine)</button>
+        <input type="file" id="belFile" accept=".pdf,.html,.htm,.txt,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,application/pdf,text/html,text/plain,image/*" hidden>
       </div>
       <div class="field">
         <label for="belText">Text raport Belarc</label>
@@ -1456,6 +1456,7 @@
   function belLoadFile(file) {
     var isPdf = /\.pdf$/i.test(file.name) || file.type === "application/pdf";
     if (isPdf) { belLoadPdf(file); return; }
+    if (/^image\//.test(file.type) || /\.(jpe?g|png|webp|bmp|gif|tif?f)$/i.test(file.name)) { belLoadImage(file); return; }
     var r = new FileReader();
     r.onload = function () {
       var raw = String(r.result || "");
@@ -1482,8 +1483,9 @@
     try { window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; } catch (e) {}
     var r = new FileReader();
     r.onload = function () {
-      var task = window.pdfjsLib.getDocument({ data: new Uint8Array(r.result) });
-      task.promise.then(function (pdf) {
+      var pdfRef = null;
+      window.pdfjsLib.getDocument({ data: new Uint8Array(r.result) }).promise.then(function (pdf) {
+        pdfRef = pdf;
         var pages = [];
         for (var i = 1; i <= pdf.numPages; i++) pages.push(i);
         return pages.reduce(function (chain, n) {
@@ -1496,19 +1498,74 @@
           });
         }, Promise.resolve(""));
       }).then(function (text) {
-        errEl.textContent = "";
-        document.getElementById("belText").value = text.trim();
-        if (!text.trim()) {
-          errEl.textContent = "PDF fără text (probabil scanat). Copiază manual datele.";
+        if (text.trim()) {
+          errEl.textContent = "";
+          document.getElementById("belText").value = text.trim();
+          doBelParse();
           return;
         }
-        doBelParse();
+        // PDF scanat (fara text) -> OCR
+        return ocrPdf(pdfRef, errEl).then(function (otext) {
+          document.getElementById("belText").value = otext.trim();
+          if (otext.trim()) { errEl.textContent = ""; doBelParse(); }
+          else { errEl.textContent = "Nu am putut extrage text nici prin OCR. Copiază manual datele."; }
+        });
       }).catch(function (e) {
         errEl.textContent = "Nu am putut citi PDF-ul: " + (e && e.message || e) + ". Lipește textul manual.";
       });
     };
     r.onerror = function () { errEl.textContent = "Eroare la citirea fișierului."; };
     r.readAsArrayBuffer(file);
+  }
+
+  var TESS_URL = "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js";
+  function loadScript(src) {
+    return new Promise(function (res, rej) {
+      if (document.querySelector('script[data-src="' + src + '"]')) { res(); return; }
+      var s = document.createElement("script");
+      s.src = src; s.setAttribute("data-src", src);
+      s.onload = function () { res(); };
+      s.onerror = function () { rej(new Error("nu s-a putut încărca OCR (verifică internetul)")); };
+      document.head.appendChild(s);
+    });
+  }
+  function ocrPdf(pdf, errEl) {
+    return loadScript(TESS_URL).then(function () {
+      if (!window.Tesseract) throw new Error("Tesseract indisponibil");
+      var n = pdf.numPages, out = "";
+      errEl.textContent = "Se pregătește OCR…";
+      return window.Tesseract.createWorker("eng").then(function (worker) {
+        var seq = []; for (var i = 1; i <= n; i++) seq.push(i);
+        return seq.reduce(function (chain, pn) {
+          return chain.then(function () {
+            errEl.textContent = "OCR pagina " + pn + " / " + n + "… (durează)";
+            return pdf.getPage(pn).then(function (page) {
+              var vp = page.getViewport({ scale: 2 });
+              var canvas = document.createElement("canvas");
+              canvas.width = vp.width; canvas.height = vp.height;
+              return page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise.then(function () {
+                return worker.recognize(canvas).then(function (res) { out += "\n" + (res.data.text || ""); });
+              });
+            });
+          });
+        }, Promise.resolve()).then(function () { return worker.terminate().then(function () { return out; }); });
+      });
+    });
+  }
+  function belLoadImage(file) {
+    var errEl = document.getElementById("belErr");
+    errEl.textContent = "OCR imagine… (durează)";
+    loadScript(TESS_URL).then(function () {
+      if (!window.Tesseract) throw new Error("Tesseract indisponibil");
+      return window.Tesseract.recognize(URL.createObjectURL(file), "eng");
+    }).then(function (res) {
+      errEl.textContent = "";
+      document.getElementById("belText").value = (res.data.text || "").trim();
+      if ((res.data.text || "").trim()) doBelParse();
+      else errEl.textContent = "OCR nu a găsit text în imagine.";
+    }).catch(function (e) {
+      errEl.textContent = "OCR eșuat: " + (e && e.message || e);
+    });
   }
 
   // Reconstruieste linii din itemele text pdf.js pe baza coordonatei Y.
