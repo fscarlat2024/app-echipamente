@@ -632,9 +632,12 @@
         <span class="hint">Echipamentul importat va fi alocat automat acestei firme (poți schimba în formular).</span>
       </div>
       <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
-        <button type="button" class="btn" id="belFileBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 3h14"/></svg>Încarcă fișier (PDF / HTML / imagine)</button>
+        <button type="button" class="btn" id="belFileBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 3h14"/></svg>Un fișier (PDF / HTML / imagine)</button>
         <input type="file" id="belFile" accept=".pdf,.html,.htm,.txt,.jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,application/pdf,text/html,text/plain,image/*" hidden>
+        <button type="button" class="btn btn-primary" id="belFolderBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Import folder întreg (mai multe)</button>
+        <input type="file" id="belFolder" webkitdirectory directory multiple hidden>
       </div>
+      <div id="belFolderRes" style="display:none; margin-bottom:10px; max-height:220px; overflow:auto; border:1px solid var(--border); border-radius:10px; padding:8px 12px; font-size:12.5px; background:var(--surface-2);"></div>
       <div class="field">
         <label for="belText">Text raport Belarc</label>
         <textarea id="belText" style="min-height:150px; font-family:'IBM Plex Mono',monospace; font-size:12px;" placeholder="Lipește aici conținutul raportului Belarc…"></textarea>
@@ -650,6 +653,7 @@
         <button type="button" class="btn" id="belCancel">Renunță</button>
         <button type="button" class="btn btn-primary" id="belParse">Detectează câmpuri</button>
         <button type="button" class="btn btn-primary" id="belUse" hidden>Completează formularul →</button>
+        <button type="button" class="btn btn-primary" id="belFolderImport" hidden>Adaugă toate</button>
       </div>
     </div>
   </div>
@@ -1399,6 +1403,10 @@
     document.getElementById("belErr").textContent = "";
     document.getElementById("belPreview").style.display = "none";
     document.getElementById("belUse").hidden = true;
+    document.getElementById("belFolderRes").style.display = "none";
+    document.getElementById("belFolderRes").innerHTML = "";
+    document.getElementById("belFolderImport").hidden = true;
+    folderItems = [];
     fillCompanySelect(document.getElementById("belCompany"), "");
     belOverlay.classList.add("open");
   }
@@ -1608,6 +1616,96 @@
     });
   }
 
+  // ---- extragere text unificata (folosita la import folder) ----
+  var folderItems = [];
+  function fileToArrayBuffer(file) { return new Promise(function (res, rej) { var r = new FileReader(); r.onload = function () { res(r.result); }; r.onerror = rej; r.readAsArrayBuffer(file); }); }
+  function fileToText(file) { return new Promise(function (res, rej) { var r = new FileReader(); r.onload = function () { res(String(r.result || "")); }; r.onerror = rej; r.readAsText(file); }); }
+  function ocrImageText(file, statusEl) {
+    return loadScript(TESS_URL).then(function () {
+      if (!window.Tesseract) throw new Error("Tesseract indisponibil");
+      return window.Tesseract.recognize(URL.createObjectURL(file), "eng").then(function (r) { return r.data.text || ""; });
+    });
+  }
+  function extractTextFromFile(file, statusEl) {
+    var name = file.name || "", type = file.type || "";
+    if (/\.pdf$/i.test(name) || type === "application/pdf") {
+      return fileToArrayBuffer(file).then(function (ab) {
+        return window.pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise.then(function (pdf) {
+          var pages = []; for (var i = 1; i <= pdf.numPages; i++) pages.push(i);
+          return pages.reduce(function (ch, n) {
+            return ch.then(function (acc) { return pdf.getPage(n).then(function (p) { return p.getTextContent().then(function (tc) { return acc + "\n" + reconstructLines(tc.items); }); }); });
+          }, Promise.resolve("")).then(function (text) { if (text.trim()) return text; return ocrPdf(pdf, statusEl); });
+        });
+      });
+    }
+    if (/^image\//.test(type) || /\.(jpe?g|png|webp|bmp|gif|tif?f)$/i.test(name)) return ocrImageText(file, statusEl);
+    return fileToText(file).then(function (raw) {
+      if (/<html|<table|<body|<!doctype/i.test(raw)) { try { var d = new DOMParser().parseFromString(raw, "text/html"); return d.body ? (d.body.innerText || d.body.textContent || "") : raw; } catch (e) { return raw; } }
+      return raw;
+    });
+  }
+
+  function renderFolderRes(lines) {
+    var res = document.getElementById("belFolderRes");
+    res.style.display = "block";
+    res.innerHTML = lines.map(function (l) {
+      var icon = l.ok ? "<span style='color:var(--ok)'>✓</span>" : "<span style='color:var(--crit)'>✕</span>";
+      var det = l.ok ? (esc(l.nume) + (l.marca ? " · " + esc(l.marca) : "")) : (l.err ? esc(l.err) : "necitit / fără date");
+      return "<div style='padding:2px 0'>" + icon + " <strong>" + esc(l.name) + "</strong> <span style='color:var(--ink-3)'>— " + det + "</span></div>";
+    }).join("");
+  }
+  function belLoadFolder(fileList) {
+    var errEl = document.getElementById("belErr");
+    var arr = Array.prototype.slice.call(fileList).filter(function (f) { return /\.(pdf|html?|txt|jpe?g|png|webp|bmp|gif|tif?f)$/i.test(f.name); });
+    if (!arr.length) { errEl.textContent = "Folderul nu conține fișiere PDF/HTML/imagine."; return; }
+    folderItems = [];
+    document.getElementById("belUse").hidden = true;
+    document.getElementById("belPreview").style.display = "none";
+    document.getElementById("belFolderImport").hidden = true;
+    var lines = [], i = 0;
+    function next() {
+      if (i >= arr.length) {
+        errEl.textContent = "";
+        document.getElementById("belFolderImport").hidden = (folderItems.length === 0);
+        document.getElementById("belFolderImport").textContent = "Adaugă toate (" + folderItems.length + ")";
+        return;
+      }
+      var f = arr[i];
+      errEl.textContent = "Procesez " + (i + 1) + "/" + arr.length + ": " + f.name + "…";
+      extractTextFromFile(f, errEl).then(function (text) {
+        var p = parseBelarc(text || "");
+        var ok = !!(p.nume || p.serial || p.marca);
+        if (ok) folderItems.push(p);
+        lines.push({ name: f.name, ok: ok, nume: p.nume, marca: p.marca });
+      }).catch(function (e) {
+        lines.push({ name: f.name, ok: false, err: (e && e.message || e) });
+      }).then(function () { i++; renderFolderRes(lines); next(); });
+    }
+    next();
+  }
+  function belFolderDoImport() {
+    if (!folderItems.length) return;
+    var chosen = document.getElementById("belCompany").value || "";
+    var btn = document.getElementById("belFolderImport"); btn.disabled = true; var old = btn.textContent; btn.textContent = "…";
+    var payload = folderItems.map(function (p) {
+      return {
+        nume: p.nume || "(fără nume)", tip: p.tip || "Altele", status: "Activ",
+        marca: p.marca || "", serial: p.serial || "", user: "", companyId: chosen,
+        achizitie: "", garantie: "", procesor: p.procesor || "", memorie: p.memorie || "",
+        stocare: p.stocare || "", os: p.os || "", cheieWindows: p.cheieWindows || "", note: ""
+      };
+    });
+    api("POST", "/api/bulk", { echipamente: payload }).then(function (res) {
+      return boot().then(function () {
+        render(); refreshCompanyList(); refreshFilterOptions();
+        closeBel();
+        toast("Import folder: " + (res.echipamente || payload.length) + " echipamente adăugate");
+      });
+    }).catch(function (e) {
+      document.getElementById("belErr").textContent = "Eroare import: " + (e && e.message || e);
+    }).then(function () { btn.disabled = false; btn.textContent = old; });
+  }
+
   // Reconstruieste linii din itemele text pdf.js pe baza coordonatei Y.
   function reconstructLines(items) {
     var lines = [], cur = null, curY = null;
@@ -1673,6 +1771,12 @@
     if (e.target.files && e.target.files[0]) belLoadFile(e.target.files[0]);
     e.target.value = "";
   });
+  document.getElementById("belFolderBtn").addEventListener("click", function () { document.getElementById("belFolder").click(); });
+  document.getElementById("belFolder").addEventListener("change", function (e) {
+    if (e.target.files && e.target.files.length) belLoadFolder(e.target.files);
+    e.target.value = "";
+  });
+  document.getElementById("belFolderImport").addEventListener("click", belFolderDoImport);
 
   // extend Escape handling to new overlays
   document.addEventListener("keydown", function (e) {
