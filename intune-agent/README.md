@@ -26,14 +26,24 @@ Copiaza tokenul afisat (o singura data).
 In `Colectare-Inventar.ps1`, inlocuieste `__INGEST_TOKEN__` cu tokenul clientului.
 
 ### 4. Incarca in Intune (tenantul clientului)
-- Intune -> **Devices -> Scripts and remediations -> Remediations** -> **Create**
-- Nume: `Inventar NCS`
-- **Detection script**: `Colectare-Inventar.ps1` (cu tokenul completat)
-- **Remediation script**: `Remediere.ps1`
-- Run this script using the logged-on credentials: **No** (ruleaza ca SYSTEM)
+
+**VARIANTA B - Platform Script (RECOMANDAT, orice licenta inclusiv Business Premium):**
+- Pune tokenul in `Install-InventarTask.ps1` (inlocuieste `__INGEST_TOKEN__`).
+- Intune -> **Devices -> Scripts and remediations -> Platform scripts** -> **Add -> Windows 10 and later**
+- Script file: `Install-InventarTask.ps1`
+- Run this script using the logged-on credentials: **No** (SYSTEM)
+- Enforce script signature check: **No**
 - Run script in 64-bit PowerShell: **Yes**
-- Enforce signature check: **No**
-- **Assignments**: grupul de device-uri al clientului. **Schedule**: Daily (sau la cateva ore).
+- **Assignments**: grupul de device-uri al clientului.
+- Scriptul instaleaza pe fiecare PC un scheduled task `NCS-Inventar` care raporteaza zilnic (+ la pornire). Ruleaza si o data imediat.
+- Local (test/PC propriu, ca Admin): `powershell -ExecutionPolicy Bypass -File Install-InventarTask.ps1`
+
+**VARIANTA A - Remediations (doar daca ai Windows/M365 E3/E5 + license verification ON):**
+- Intune -> **Devices -> Scripts and remediations -> Remediations** -> **Create**
+- Detection: `Colectare-Inventar.ps1` (cu token) · Remediation: `Remediere.ps1`
+- Run as SYSTEM (logged-on: No), 64-bit: Yes, signature: No
+- Assign la grup, Schedule: Daily.
+- NOTA: butonul Create e gri daca "Windows license verification" nu e activat (Reports -> Endpoint analytics -> Settings) sau tenantul n-are E3/E5.
 
 Dupa prima rulare, echipamentele apar in `app.netcomm.ro` la firma clientului si in conectorul Claude.
 
