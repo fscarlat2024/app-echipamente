@@ -1,0 +1,33 @@
+{
+  // Conector MCP pentru Inventar Echipamente - expune uneltele peste D1 catre Claude.
+  // OAuth prin @cloudflare/workers-oauth-provider, login delegat la Cloudflare Access (@netcomm.ro).
+  // Deploy: npx wrangler deploy
+  "name": "mcp-echipamente",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "inventar-echipamente",
+      "database_id": "9f9e97e1-3a94-4120-8b29-385d20a377c9"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      "id": "d1397b4006bd41718f04cd9c3cf07d79"
+    }
+  ],
+  "vars": {
+    // Domeniul de admin (login @netcomm.ro = acces complet). Restul: doar firma lor (client_emails).
+    "ADMIN_DOMAIN": "netcomm.ro"
+    // Secrete (setate cu: npx wrangler secret put <NUME>):
+    //   ACCESS_CLIENT_ID     - Client ID din aplicatia Access SaaS-OIDC
+    //   ACCESS_CLIENT_SECRET - Client Secret
+    //   ACCESS_AUTH_URL      - Authorization endpoint (din dashboard Access)
+    //   ACCESS_TOKEN_URL     - Token endpoint (din dashboard Access)
+  }
+}
