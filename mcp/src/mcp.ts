@@ -303,5 +303,55 @@ export function buildServer(env: any): McpServer {
     }
   );
 
+  // ================= TOKENURI INGEST (agent Intune) — doar admin =================
+
+  server.registerTool(
+    "creeaza_token_ingest",
+    {
+      description: "Creează un token de ingest pentru o firmă (pentru agentul Intune care trimite automat echipamentele). Tokenul se afișează O SINGURĂ DATĂ. Doar admin.",
+      inputSchema: { firma: z.string().describe("nume firmă") },
+    },
+    async ({ firma }: any) => {
+      const role = await resolveRole(env, getEmail());
+      if (role.kind !== "admin") return txt("Doar administratorii pot crea tokenuri de ingest.");
+      const c = await env.DB.prepare("SELECT id,nume FROM companies WHERE lower(nume) LIKE ?").bind("%" + firma.toLowerCase() + "%").first();
+      if (!c) return txt(`Firma "${firma}" nu există. Creeaz-o întâi cu adauga_firma.`);
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS ingest_tokens (token_hash TEXT PRIMARY KEY, company_id TEXT, note TEXT, created_at INTEGER)").run();
+      const raw = "ing_" + Array.from(crypto.getRandomValues(new Uint8Array(24))).map((x) => x.toString(16).padStart(2, "0")).join("");
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
+      const hash = Array.from(new Uint8Array(buf)).map((x) => x.toString(16).padStart(2, "0")).join("");
+      await env.DB.prepare("INSERT INTO ingest_tokens (token_hash,company_id,note,created_at) VALUES (?,?,?,?)").bind(hash, c.id, "firma:" + c.nume, Date.now()).run();
+      return txt(`Token ingest pentru firma "${c.nume}" (salvează-l acum, nu mai poate fi afișat):\n\n${raw}\n\nÎl pui în scriptul Intune (variabila INGEST_TOKEN) pentru PC-urile acestui client. Toate echipamentele trimise cu el intră automat la firma "${c.nume}".`);
+    }
+  );
+
+  server.registerTool(
+    "listeaza_tokenuri_ingest",
+    { description: "Listează tokenurile de ingest existente (firmă + dată), fără valoarea tokenului. Doar admin.", inputSchema: {} },
+    async () => {
+      const role = await resolveRole(env, getEmail());
+      if (role.kind !== "admin") return txt("Doar administratorii.");
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS ingest_tokens (token_hash TEXT PRIMARY KEY, company_id TEXT, note TEXT, created_at INTEGER)").run();
+      const rows = await env.DB.prepare("SELECT token_hash,company_id,note,created_at FROM ingest_tokens ORDER BY created_at DESC").all();
+      const cmap = await companyMap(env);
+      const list = rows.results || [];
+      if (!list.length) return txt("Niciun token de ingest.");
+      return txt("Tokenuri ingest:\n" + list.map((r: any) => `• ${cmap[r.company_id] || r.company_id} — creat ${new Date(r.created_at).toISOString().slice(0, 10)} — hash ${String(r.token_hash).slice(0, 10)}…`).join("\n"));
+    }
+  );
+
+  server.registerTool(
+    "revoca_token_ingest",
+    { description: "Revocă (șterge) toate tokenurile de ingest ale unei firme. Doar admin.", inputSchema: { firma: z.string() } },
+    async ({ firma }: any) => {
+      const role = await resolveRole(env, getEmail());
+      if (role.kind !== "admin") return txt("Doar administratorii.");
+      const c = await env.DB.prepare("SELECT id,nume FROM companies WHERE lower(nume) LIKE ?").bind("%" + firma.toLowerCase() + "%").first();
+      if (!c) return txt(`Firma "${firma}" nu există.`);
+      const res: any = await env.DB.prepare("DELETE FROM ingest_tokens WHERE company_id=?").bind(c.id).run();
+      return txt(`Tokenuri revocate pentru "${c.nume}".`);
+    }
+  );
+
   return server;
 }

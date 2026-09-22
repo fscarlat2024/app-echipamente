@@ -280,9 +280,74 @@ async function handleApi(request, env, url) {
   return json({ error: "not_found" }, 404);
 }
 
+// ---- Ingest agent (Intune Proactive Remediation) ----
+// Autentificare cu token per client (mapat la o firma in tabela ingest_tokens).
+// NU trece prin Cloudflare Access (masinile nu fac login interactiv).
+async function sha256hex(s) {
+  var b = new TextEncoder().encode(s);
+  var h = await crypto.subtle.digest("SHA-256", b);
+  return Array.from(new Uint8Array(h)).map(function (x) { return x.toString(16).padStart(2, "0"); }).join("");
+}
+async function handleIngest(request, env) {
+  if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+  var auth = request.headers.get("authorization") || "";
+  var token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : (request.headers.get("x-ingest-token") || "").trim();
+  if (!token) return json({ error: "missing_token" }, 401);
+  await env.DB.prepare("CREATE TABLE IF NOT EXISTS ingest_tokens (token_hash TEXT PRIMARY KEY, company_id TEXT, note TEXT, created_at INTEGER)").run();
+  var hash = await sha256hex(token);
+  var row = await env.DB.prepare("SELECT company_id FROM ingest_tokens WHERE token_hash=?").bind(hash).first();
+  if (!row) return json({ error: "invalid_token" }, 401);
+  var companyId = row.company_id;
+
+  var body = await request.json();
+  var devices = Array.isArray(body) ? body : (Array.isArray(body.devices) ? body.devices : [body]);
+  var inserted = 0, updated = 0;
+  var now = Date.now();
+
+  for (var i = 0; i < devices.length; i++) {
+    var d = devices[i] || {};
+    var nume = str(d.nume).trim();
+    var serial = str(d.serial).trim();
+    if (!nume && !serial) continue;
+    if (!nume) nume = serial;
+
+    var existing = null;
+    if (serial) {
+      existing = await env.DB.prepare("SELECT id FROM equipment WHERE serial=? LIMIT 1").bind(serial).first();
+    }
+    if (!existing) {
+      existing = await env.DB.prepare("SELECT id FROM equipment WHERE nume=? AND company_id=? LIMIT 1").bind(nume, companyId).first();
+    }
+
+    if (existing) {
+      // refresh doar campurile hardware + firma; NU atinge garantie/achizitie/status/note (gestionate manual)
+      await env.DB.prepare(
+        "UPDATE equipment SET nume=?,tip=?,marca=?,user=?,os=?,procesor=?,memorie=?,stocare=?,cheie_windows=?,company_id=?,updated_at=? WHERE id=?"
+      ).bind(nume, str(d.tip) || "Altele", str(d.marca), str(d.user), str(d.os), str(d.procesor), str(d.memorie), str(d.stocare), str(d.cheieWindows), companyId, now, existing.id).run();
+      updated++;
+    } else {
+      var id = newId("eq_");
+      var vals = apiToEqValues({
+        id: id, nume: nume, tip: str(d.tip) || "Altele", marca: str(d.marca), serial: serial, user: str(d.user),
+        companyId: companyId, achizitie: "", garantie: "", status: "Activ",
+        procesor: str(d.procesor), memorie: str(d.memorie), stocare: str(d.stocare), os: str(d.os), cheieWindows: str(d.cheieWindows), note: ""
+      });
+      await env.DB.prepare(
+        "INSERT INTO equipment (" + EQ_COLS.join(",") + ",updated_at) VALUES (" + placeholders(EQ_COLS.length) + ",?)"
+      ).bind(vals[0],vals[1],vals[2],vals[3],vals[4],vals[5],vals[6],vals[7],vals[8],vals[9],vals[10],vals[11],vals[12],vals[13],vals[14],vals[15],now).run();
+      inserted++;
+    }
+  }
+  return json({ ok: true, inserted: inserted, updated: updated });
+}
+
 export default {
   async fetch(request, env) {
     var url = new URL(request.url);
+    if (url.pathname === "/api/ingest") {
+      try { return await handleIngest(request, env); }
+      catch (e) { return json({ error: "server_error", detail: String(e && e.message || e) }, 500); }
+    }
     if (url.pathname.startsWith("/api/")) {
       try { return await handleApi(request, env, url); }
       catch (e) { return json({ error: "server_error", detail: String(e && e.message || e) }, 500); }
